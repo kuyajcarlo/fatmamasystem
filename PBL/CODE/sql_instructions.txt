@@ -1,26 +1,11 @@
--- 1. Inventory Table
-CREATE TABLE inventory (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  code text UNIQUE NOT NULL,
-  name text NOT NULL,
-  category text NOT NULL,
-  current_stock integer NOT NULL DEFAULT 0,
-  min_stock integer NOT NULL DEFAULT 0,
-  max_stock integer NOT NULL DEFAULT 0,
-  unit text NOT NULL,
-  last_restocked date,
-  supplier text,
-  status text NOT NULL
-);
+-- Option A: Add a policy to allow ANYONE to read the products
+CREATE POLICY "Allow public read access on products"
+ON products FOR SELECT
+TO public
+USING (true);
 
--- 2. Products Catalog Table
-CREATE TABLE products (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  code text,
-  name text NOT NULL,
-  category text NOT NULL,
-  price numeric(10,2) NOT NULL,
-  status text NOT NULL DEFAULT 'active',
-  popular boolean DEFAULT false,
-  description text
-);
+-- Option B: Add a policy to allow ANYONE to read the inventory
+CREATE POLICY "Allow public read access on inventory"
+ON inventory FOR SELECT
+TO public
+USING (true);

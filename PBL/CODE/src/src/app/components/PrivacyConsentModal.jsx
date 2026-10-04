@@ -12,7 +12,7 @@ export default function PrivacyConsentModal() {
           <div className="flex items-center gap-3">
             <Shield className="w-8 h-8"/>
             <div>
-              <h2 className="text-2xl font-bold text-white">Data Privacy Notice</h2>
+              <h2 className="text-2xl font-bold">Data Privacy Notice</h2>
               <p className="text-sm text-gray-200 mt-1">Please review our data collection practices</p>
             </div>
           </div>
