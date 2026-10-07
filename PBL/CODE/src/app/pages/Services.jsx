@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { Send, CheckCircle, Lock, ChevronDown, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useInquiries } from '../context/InquiryContext';
+import { useSubmitLock } from '../hooks/useSubmitLock';
 const USER_STATUS = {
     new: { label: 'Sent', color: 'bg-amber-100 text-amber-700 border-amber-200', desc: 'Your inquiry has been received and is waiting to be reviewed.' },
     read: { label: 'Opened', color: 'bg-blue-100 text-blue-700 border-blue-200', desc: 'Our team has opened and is reviewing your inquiry.' },
@@ -60,8 +61,7 @@ export default function Services() {
             });
         }
     };
-    const handleSubmit = (e) => {
-        e.preventDefault();
+    const [handleSubmit, sending] = useSubmitLock(async (e) => {
         if (!isLoggedIn) {
             navigate('/account?redirect=inquiries');
             return;
@@ -71,14 +71,14 @@ export default function Services() {
             setErrors(validationErrors);
             return;
         }
-        addInquiry({
+        await addInquiry({
             name: formData.name,
             email: formData.email,
             phone: formData.phone,
             message: formData.message,
         });
         setSubmitted(true);
-    };
+    });
     return (<div>
       {/* Hero */}
       <section className="relative py-32 overflow-hidden">
@@ -199,7 +199,7 @@ export default function Services() {
                 </div>
 
                 {/* Submit */}
-                <button type="submit" className="w-full bg-[#D4A843] hover:bg-[#B8923A] text-white py-3 rounded-lg font-semibold text-base transition-colors flex items-center justify-center gap-2">
+                <button type="submit" disabled={sending} className="w-full bg-[#D4A843] hover:bg-[#B8923A] text-white py-3 rounded-lg font-semibold text-base transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                   {isLoggedIn ? (<>
                       <Send className="w-5 h-5"/>
                       SEND

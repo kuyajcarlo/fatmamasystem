@@ -2,11 +2,16 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { useOrders } from '../context/OrderContext';
-import { Package, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { useCakeDesign } from '../context/CakeDesignContext';
+import { useCart } from '../context/CartContext';
+import { toast } from 'sonner';
+import { Package, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, Cake, ShoppingCart } from 'lucide-react';
 export default function MyOrders() {
     const navigate = useNavigate();
     const { user, isLoggedIn } = useAuth();
     const { orders: allOrders } = useOrders();
+    const { requests: allDesigns, markOrdered } = useCakeDesign();
+    const { addItem } = useCart();
     const [expandedOrder, setExpandedOrder] = useState(null);
     useEffect(() => {
         if (!isLoggedIn) {
@@ -14,7 +19,28 @@ export default function MyOrders() {
         }
     }, [isLoggedIn, navigate]);
     // Filter orders for current user
-    const userOrders = allOrders.filter(order => order.email === user?.email);
+    const myEmail = (user?.email || '').toLowerCase();
+    const userOrders = allOrders.filter(order => (order.email || '').toLowerCase() === myEmail);
+    // Custom cake design requests of this customer (newest first)
+    const myDesigns = allDesigns.filter(r => (r.customerEmail || r.userEmail || '').toLowerCase() === myEmail);
+    // 'ordered' = was approved and already added to an order
+    const DESIGN_STATUS = {
+        pending: { label: 'Pending approval', style: 'text-yellow-700 bg-yellow-100', Icon: Clock, message: 'Our team is reviewing your design. We will update this page once it is approved or denied.' },
+        approved: { label: 'Approved', style: 'text-green-700 bg-green-100', Icon: CheckCircle, message: 'Your design was approved. You can now order it.' },
+        ordered: { label: 'Approved', style: 'text-green-700 bg-green-100', Icon: CheckCircle, message: 'Your approved design has been added to an order.' },
+        rejected: { label: 'Denied', style: 'text-red-700 bg-red-100', Icon: XCircle, message: 'Sorry, we could not make this design.' },
+    };
+    const orderApprovedDesign = (req) => {
+        if (req.ordered) return; // strictly once
+        const topperDisplay = req.topper === 'other'
+            ? req.otherTopper || 'Custom Topper'
+            : req.topper && req.topper !== 'none' ? req.topper : '';
+        const itemName = `Custom Cake — ${req.sizeName} · ${req.flavor} · ${req.frosting}${topperDisplay ? ' · ' + topperDisplay : ''}${req.occasion ? ' (' + req.occasion + ')' : ''}`;
+        addItem({ id: `cake-approved-${req.id}`, name: itemName, price: req.approvedPrice, image: req.imageUrl });
+        markOrdered(req.id);
+        toast.success('Custom cake added to cart!');
+        navigate('/checkout');
+    };
     const getStatusColor = (status) => {
         switch (status) {
             case 'completed':
@@ -66,10 +92,10 @@ export default function MyOrders() {
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="mb-8">
           <h1 className="mb-2">My Orders</h1>
-          <p className="text-gray-600">Track and view your order history</p>
+          <p className="text-gray-600">Track your orders and custom cake designs</p>
         </div>
 
-        {userOrders.length === 0 ? (<div className="bg-white rounded-lg shadow-sm p-12 text-center">
+        {userOrders.length === 0 && myDesigns.length === 0 ? (<div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4"/>
             <h2 className="text-2xl mb-2">No orders yet</h2>
             <p className="text-gray-600 mb-6">Start shopping to see your orders here</p>
@@ -169,6 +195,56 @@ export default function MyOrders() {
                     </div>
                   </div>)}
               </div>))}
+          </div>)}
+
+        {/* Custom cake design requests */}
+        {myDesigns.length > 0 && (<div className={userOrders.length > 0 ? 'mt-10' : ''}>
+            <h2 className="text-2xl font-bold mb-1 flex items-center gap-2">
+              <Cake className="w-6 h-6 text-[#D4A843]"/> Custom Cake Designs
+            </h2>
+            <p className="text-gray-600 mb-4">Track whether your design is approved, denied, or still waiting for approval</p>
+            <div className="space-y-4">
+              {myDesigns.map((req) => {
+                const st = DESIGN_STATUS[req.status] || DESIGN_STATUS.pending;
+                const canOrder = req.status === 'approved' && !req.ordered && req.approvedPrice !== undefined && req.approvedPrice !== null;
+                return (<div key={req.id} className={`bg-white rounded-lg shadow-sm overflow-hidden border-l-4 ${req.status === 'approved' ? 'border-green-500' : req.status === 'rejected' ? 'border-red-400' : req.status === 'ordered' ? 'border-green-500' : 'border-yellow-400'}`}>
+                  <div className="p-6 flex gap-4">
+                    {req.imageUrl && (<img src={req.imageUrl} alt="Cake design" className="w-24 h-24 rounded-lg object-cover shrink-0 border border-gray-100"/>)}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-mono text-gray-400">{req.id}</p>
+                          <h3 className="font-bold text-lg">Custom Cake Design</h3>
+                          <p className="text-sm text-gray-600">
+                            {[req.sizeName, req.layers ? `${req.layers} layer${Number(req.layers) > 1 ? 's' : ''}` : '', req.flavor, req.frosting].filter(Boolean).join(' · ')}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">{[req.occasion, req.submittedAt && `Submitted ${req.submittedAt}`].filter(Boolean).join(' · ')}</p>
+                        </div>
+                        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${st.style}`}>
+                          <st.Icon className="w-5 h-5"/>
+                          {st.label}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 p-3 bg-gray-50 rounded-lg border-l-4 border-[#D4A843]">
+                        <p className="text-sm text-gray-700">{st.message}</p>
+                        {req.reviewNote && (<p className="text-sm text-gray-600 mt-1">Note from our team: {req.reviewNote}</p>)}
+                      </div>
+
+                      {(req.status === 'approved' || req.status === 'ordered') && req.approvedPrice !== undefined && req.approvedPrice !== null && (<p className="mt-3 text-sm font-bold text-[#D4A843]">Approved price: ₱ {Number(req.approvedPrice).toLocaleString()}</p>)}
+
+                      {canOrder && (<button onClick={() => orderApprovedDesign(req)} className="mt-3 inline-flex items-center gap-2 px-5 py-2.5 bg-[#D4A843] hover:bg-[#B8923A] text-white rounded-md text-sm font-semibold transition-colors">
+                          <ShoppingCart className="w-4 h-4"/> Order Now
+                        </button>)}
+
+                      {req.status === 'rejected' && (<button onClick={() => navigate('/design')} className="mt-3 text-sm text-[#2C5F4F] underline hover:no-underline">
+                          Submit a new design →
+                        </button>)}
+                    </div>
+                  </div>
+                </div>);
+              })}
+            </div>
           </div>)}
       </div>
     </div>);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, AlertTriangle, TrendingDown, Package, Plus, Minus, Trash2, X, RefreshCw } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { INITIAL_INVENTORY } from '../../lib/fallbackData';
 
@@ -450,7 +450,6 @@ export default function AdminInventory() {
                 </div>
             )}
 
-            <Toaster position="top-right" richColors />
         </div>
     );
 }

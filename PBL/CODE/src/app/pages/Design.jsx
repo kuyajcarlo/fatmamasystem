@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { useCakeDesign } from '../context/CakeDesignContext';
+import { useSubmitLock } from '../hooks/useSubmitLock';
 const defaultCakeImage = 'https://images.unsplash.com/photo-1613323885373-6e91a09b598b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800';
 const cakeSizes = [
     { id: 'small', name: 'Small', inches: '6"', serves: 'Serves 8–10', price: 450, layerPrice: 75 },
@@ -94,7 +95,7 @@ export default function Design() {
             toast.success('Your custom cake design is ready!');
         }, 2000);
     };
-    const handleSubmitForApproval = () => {
+    const [handleSubmitForApproval, submitting] = useSubmitLock(async () => {
         if (!isLoggedIn) {
             navigate('/account?redirect=design');
             return;
@@ -103,7 +104,7 @@ export default function Design() {
         const topperDisplay = customization.topper === 'other'
             ? customization.otherTopper.trim() || 'Custom Topper'
             : selectedTopper.name;
-        submitRequest({
+        await submitRequest({
             customerEmail: user.email,
             customerName: user.name,
             sizeId: customization.sizeId,
@@ -121,8 +122,8 @@ export default function Design() {
             basePrice: totalPrice,
         });
         setSubmitted(true);
-        toast.success('Design submitted for review! Check your profile for updates.');
-    };
+        toast.success('Design submitted for review! Track it under My Orders.');
+    });
     return (<div className="min-h-screen bg-gray-50">
       {/* Hero */}
       <section className="bg-gradient-to-r from-[#2C5F4F] to-[#1F4437] py-12">
@@ -338,13 +339,13 @@ export default function Design() {
                     <p className="font-semibold text-green-800 text-sm">Design submitted for approval!</p>
                     <p className="text-green-600 text-xs mt-0.5">
                       Check{' '}
-                      <button onClick={() => navigate('/profile')} className="underline font-medium">My Profile → Design Requests</button>
+                      <button onClick={() => navigate('/my-orders')} className="underline font-medium">My Orders → Design Requests</button>
                       {' '}for updates.
                     </p>
                   </div>
-                </div>) : (<button onClick={handleSubmitForApproval} className="w-full bg-[#D4A843] hover:bg-[#B8923A] text-white py-3 rounded-lg transition-colors font-medium text-lg flex items-center justify-center gap-2">
+                </div>) : (<button onClick={handleSubmitForApproval} disabled={submitting} className="w-full bg-[#D4A843] hover:bg-[#B8923A] text-white py-3 rounded-lg transition-colors font-medium text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                   <Send className="w-5 h-5"/>
-                  Submit Design for Approval — ₱{totalPrice.toLocaleString()}
+                  {submitting ? 'Submitting…' : `Submit Design for Approval — ₱${totalPrice.toLocaleString()}`}
                 </button>)}
               <p className="text-xs text-gray-400 text-center">
                 Our team will review your design and confirm feasibility before you place the order.

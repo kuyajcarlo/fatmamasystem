@@ -4,18 +4,17 @@ import { useAuth } from '../context/AuthContext';
 import { usePrivacy } from '../context/PrivacyContext';
 import { toast } from 'sonner';
 import { UserPlus } from 'lucide-react';
+import { useSubmitLock } from '../hooks/useSubmitLock';
 export default function Signup() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { signup } = useAuth();
     const { hasConsented, setShowConsentModal } = usePrivacy();
     
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const [handleSubmit, loading] = useSubmitLock(async (e) => {
         
         if (!name || !email || !password || !confirmPassword) {
             toast.error('Please fill in all fields');
@@ -30,9 +29,7 @@ export default function Signup() {
             return;
         }
         
-        setLoading(true);
         const result = await signup({ name, email, password });
-        setLoading(false);
         
         if (result.success) {
             navigate('/');
@@ -40,7 +37,7 @@ export default function Signup() {
                 setTimeout(() => setShowConsentModal(true), 500);
             }
         }
-    };
+    });
     
     return (<div className="min-h-[calc(100vh-400px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <div className="max-w-md w-full space-y-8">

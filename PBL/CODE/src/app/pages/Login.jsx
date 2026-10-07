@@ -4,11 +4,12 @@ import { useAuth } from '../context/AuthContext';
 import { usePrivacy } from '../context/PrivacyContext';
 import { toast } from 'sonner';
 import { LogIn, ShieldCheck, UserCheck, Users } from 'lucide-react';
+import { useSubmitLock } from '../hooks/useSubmitLock';
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [withLock, loading] = useSubmitLock(async (task) => task());
     const navigate = useNavigate();
     const { login } = useAuth();
     const { hasConsented, setShowConsentModal } = usePrivacy();
@@ -26,34 +27,30 @@ export default function Login() {
         }
     };
 
-    const handleQuickLogin = async (quickEmail, quickPassword) => {
+    const handleQuickLogin = (quickEmail, quickPassword) => withLock(async () => {
         setEmail(quickEmail);
         setPassword(quickPassword);
-        setLoading(true);
         const result = await login(quickEmail, quickPassword);
-        setLoading(false);
         if (result.success) {
             toast.success(`Logged in as ${result.role || 'user'}!`);
             handleLoginWithRole(result.role);
         }
-    };
+    });
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
         if (!email || !password) {
             toast.error('Please fill in all fields');
             return;
         }
-        
-        setLoading(true);
-        const result = await login(email, password);
-        setLoading(false);
-        
-        if (result.success) {
-            toast.success('Welcome back!');
-            const userRole = result.role || (result.user && result.user.role);
-            handleLoginWithRole(userRole);
-        }
+        return withLock(async () => {
+            const result = await login(email, password);
+            if (result.success) {
+                toast.success('Welcome back!');
+                const userRole = result.role || (result.user && result.user.role);
+                handleLoginWithRole(userRole);
+            }
+        });
     };
 
     return (<div className="min-h-[calc(100vh-400px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">

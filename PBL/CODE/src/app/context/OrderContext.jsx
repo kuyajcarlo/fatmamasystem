@@ -114,9 +114,11 @@ export function OrderProvider({ children }) {
                     delivery_address: fullOrder.delivery_address,
                     items: fullOrder.items
                 };
-                await supabase.from('orders').insert([dbOrder]);
+                const { error } = await supabase.from('orders').insert([dbOrder]);
+                if (error) throw error;
             } catch (error) {
-                console.warn('Note: Order saved locally');
+                console.error('Order NOT saved to Supabase:', error);
+                toast.warning('Order saved on this device only — could not reach the database.');
             }
         }
     };

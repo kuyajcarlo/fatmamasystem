@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { usePrivacy } from '../context/PrivacyContext';
 import { toast } from 'sonner';
+import { useSubmitLock } from '../hooks/useSubmitLock';
 import { Eye, EyeOff } from 'lucide-react';
 import logoImage from '../../imports/Gemini_Generated_Image_p60lg7p60lg7p60l-removebg-preview__1_.png';
 const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -32,6 +33,7 @@ export default function AccountPage() {
             setTimeout(() => setShowConsentModal(true), 500);
         }
     };
+    const [withLock, busy] = useSubmitLock(async (task) => task());
     const handleLogin = async (e) => {
         e.preventDefault();
         const errs = {};
@@ -49,7 +51,7 @@ export default function AccountPage() {
             return;
         }
         setLoginErrors({});
-        const res = await login(loginEmail, loginPassword);
+        const res = await withLock(() => login(loginEmail, loginPassword));
         if (res?.success) {
             toast.success(`Welcome back${res.user?.name ? ', ' + res.user.name : ''}!`);
             if (res.role === 'admin') {
@@ -92,11 +94,11 @@ export default function AccountPage() {
             return;
         }
         setSignupErrors({});
-        const res = await signup({
+        const res = await withLock(() => signup({
             name: signupName,
             email: signupEmail,
             password: signupPassword,
-        });
+        }));
         if (res?.success) {
             navigate(redirectTo);
             showPrivacyModal();
@@ -234,7 +236,7 @@ export default function AccountPage() {
                   {loginErrors.password && <p className="mt-1 text-xs text-red-500">{loginErrors.password}</p>}
                 </div>
 
-                <button type="submit" className="w-full py-3 bg-[#2C5F4F] hover:bg-[#1F4437] text-white font-semibold rounded-lg transition-colors mt-2">
+                <button type="submit" disabled={busy} className="w-full py-3 bg-[#2C5F4F] hover:bg-[#1F4437] text-white font-semibold rounded-lg transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
                   Sign In
                 </button>
               </form>
@@ -321,7 +323,7 @@ export default function AccountPage() {
                 </div>
                 {signupErrors.terms && <p className="text-xs text-red-500 -mt-2">{signupErrors.terms}</p>}
 
-                <button type="submit" className="w-full py-3 bg-[#D4A843] hover:bg-[#B8923A] text-white font-semibold rounded-lg transition-colors">
+                <button type="submit" disabled={busy} className="w-full py-3 bg-[#D4A843] hover:bg-[#B8923A] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   Create Account
                 </button>
               </form>

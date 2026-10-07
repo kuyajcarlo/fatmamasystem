@@ -25,6 +25,9 @@ function saveLocalCustomer(customer) {
     localStorage.setItem(LOCAL_CUSTOMERS_KEY, JSON.stringify(list));
 }
 
+// ilike treats "_" and "%" as wildcards; escape them so e.g. john_doe@x.com only matches itself
+const escapeLike = (v) => String(v).replace(/[\\%_]/g, '\\$&');
+
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(() => {
         // Load user from localStorage on initialization for session persistence
@@ -86,7 +89,7 @@ export function AuthProvider({ children }) {
                 const { data: staffData, error: staffErr } = await supabase
                     .from('staff_accounts')
                     .select('*')
-                    .ilike('email', cleanEmail)
+                    .ilike('email', escapeLike(cleanEmail))
                     .eq('password', pwd)
                     .maybeSingle();
 
@@ -105,7 +108,7 @@ export function AuthProvider({ children }) {
                 const { data: customerData, error: custErr } = await supabase
                     .from('customers')
                     .select('*')
-                    .ilike('email', cleanEmail)
+                    .ilike('email', escapeLike(cleanEmail))
                     .eq('password', pwd)
                     .maybeSingle();
 
@@ -165,13 +168,6 @@ export function AuthProvider({ children }) {
     const signup = async (userData) => {
         const cleanEmail = userData.email.trim().toLowerCase();
 
-        // Check local duplicate first
-        const localList = getLocalCustomers();
-        if (localList.some(c => c.email.toLowerCase() === cleanEmail)) {
-            toast.error('An account with this email already exists.');
-            return { success: false };
-        }
-
         const newCustomerObj = {
             id: `CUST-${Date.now().toString().slice(-6)}`,
             name: userData.name,
@@ -190,7 +186,7 @@ export function AuthProvider({ children }) {
                 const { data: existingUser } = await supabase
                     .from('customers')
                     .select('email')
-                    .ilike('email', cleanEmail)
+                    .ilike('email', escapeLike(cleanEmail))
                     .maybeSingle();
 
                 if (existingUser) {
@@ -219,7 +215,11 @@ export function AuthProvider({ children }) {
                     return { success: true, user: u };
                 } else if (error) {
                     console.error("Supabase customer insert error:", error);
-                    toast.error(`Database error: ${error.message || 'Failed to save customer'}`);
+                    if (error.code === '23505') {
+                        toast.error('An account with this email already exists.');
+                    } else {
+                        toast.error(`Could not create account: ${error.message || 'database error'}`);
+                    }
                     return { success: false };
                 }
             } catch (error) {
@@ -230,6 +230,10 @@ export function AuthProvider({ children }) {
         }
 
         // Offline / local fallback only when supabase client is not configured
+        if (getLocalCustomers().some(c => c.email.toLowerCase() === cleanEmail)) {
+            toast.error('An account with this email already exists.');
+            return { success: false };
+        }
         saveLocalCustomer(newCustomerObj);
         
         try {

@@ -419,7 +419,7 @@ export default function ProfilePage() {
                             </div>
                             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${statusStyle}`}>
                               <StatusIcon className="w-3 h-3"/>
-                              {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                              {req.status === 'rejected' ? 'Denied' : req.status === 'pending' ? 'Pending approval' : req.status.charAt(0).toUpperCase() + req.status.slice(1)}
                             </span>
                           </div>
 

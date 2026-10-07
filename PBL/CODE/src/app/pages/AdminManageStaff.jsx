@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Trash2, UserCheck, UserX, Users, X } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
+import { useSubmitLock } from '../hooks/useSubmitLock';
 
 const DEFAULT_STAFF = [
     {
@@ -77,7 +78,7 @@ export default function AdminManageStaff() {
         return errs;
     };
 
-    const handleAdd = async () => {
+    const [handleAdd, adding] = useSubmitLock(async () => {
         const errs = validateModal();
         if (Object.keys(errs).length) {
             setModal((m) => ({ ...m, errors: errs }));
@@ -118,7 +119,7 @@ export default function AdminManageStaff() {
             console.error('Error adding staff:', error);
             toast.error('Failed to save staff account to database');
         }
-    };
+    });
 
     const toggleStatus = async (id) => {
         const target = staff.find((s) => s.id === id);
@@ -296,7 +297,7 @@ export default function AdminManageStaff() {
                             <button onClick={closeModal} className="px-5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition-colors font-medium text-sm">
                                 Cancel
                             </button>
-                            <button onClick={handleAdd} className="px-5 py-2.5 rounded-lg bg-[#D4A843] hover:bg-[#B8923A] text-white font-medium text-sm transition-colors shadow-sm">
+                            <button onClick={handleAdd} disabled={adding} className="px-5 py-2.5 rounded-lg bg-[#D4A843] hover:bg-[#B8923A] text-white font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                                 Create Account
                             </button>
                         </div>
@@ -325,7 +326,6 @@ export default function AdminManageStaff() {
                     </div>
                 </div>
             )}
-            <Toaster position="top-right" richColors />
         </div>
     );
 }

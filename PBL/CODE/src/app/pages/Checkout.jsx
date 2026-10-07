@@ -7,7 +7,7 @@ import { usePrivacy } from '../context/PrivacyContext';
 import { useDelivery } from '../context/DeliveryContext';
 import { CreditCard, Truck, MapPin, Phone, User, Mail, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { Toaster } from 'sonner';
+import { useSubmitLock } from '../hooks/useSubmitLock';
 export default function Checkout() {
     const navigate = useNavigate();
     const { items, totalPrice, clearCart } = useCart();
@@ -91,8 +91,8 @@ export default function Checkout() {
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
-    const handleSubmit = (e) => {
-        e.preventDefault();
+    const [handleSubmit, placing] = useSubmitLock(async (e) => {
+        e?.preventDefault?.();
         // Check privacy consent
         if (!hasConsented) {
             toast.error('Please accept our data privacy policy to place orders');
@@ -138,13 +138,13 @@ export default function Checkout() {
             });
         }
         // Save order
-        addOrder(order);
+        await addOrder(order);
         toast.success('Order placed successfully! Thank you for your purchase.', {
             duration: 3000,
         });
         clearCart();
         navigate('/');
-    };
+    });
     if (items.length === 0) {
         return (<div className="min-h-screen bg-gray-50 py-12">
         <div className="container mx-auto px-4 max-w-6xl">
@@ -354,8 +354,8 @@ export default function Checkout() {
                 </div>
               </div>
 
-              <button onClick={handleSubmit} className="w-full bg-[#D4A843] hover:bg-[#B8923A] text-white py-3 rounded-md transition-colors mt-6">
-                Place Order
+              <button onClick={handleSubmit} disabled={placing} className="w-full bg-[#D4A843] hover:bg-[#B8923A] text-white py-3 rounded-md transition-colors mt-6 disabled:opacity-50 disabled:cursor-not-allowed">
+                {placing ? 'Placing order…' : 'Place Order'}
               </button>
 
               <p className="text-xs text-gray-500 text-center mt-4">
@@ -366,7 +366,5 @@ export default function Checkout() {
         </div>
       </div>
 
-      {/* Toast Notifications */}
-      <Toaster position="top-right" richColors/>
     </div>);
 }

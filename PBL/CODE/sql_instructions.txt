@@ -1,3 +1,0 @@
--- Please see sql_instructions_full.txt for the complete, tested database schema,
--- RLS security fix, and default accounts seed script.
--- Copy the content of sql_instructions_full.txt into your Supabase SQL Editor and press RUN.

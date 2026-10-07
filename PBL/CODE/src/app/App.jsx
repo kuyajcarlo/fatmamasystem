@@ -1,4 +1,5 @@
 import { RouterProvider } from 'react-router';
+import { Toaster } from 'sonner';
 import { router } from './routes';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -18,6 +19,7 @@ export default function App() {
                 <InquiryProvider>
                   <CartProvider>
                     <RouterProvider router={router}/>
+                    <Toaster position="top-right" richColors/>
                   </CartProvider>
                 </InquiryProvider>
               </OrderProvider>

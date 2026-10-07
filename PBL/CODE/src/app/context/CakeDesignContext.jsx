@@ -29,7 +29,11 @@ export function CakeDesignProvider({ children }) {
         try {
             if (!supabase) return;
             const { data, error } = await supabase.from('cake_requests').select('*').order('date', { ascending: false });
-            if (!error && data) {
+            if (error) {
+                console.error('Could not load cake_requests from Supabase:', error);
+                return;
+            }
+            if (data) {
                 // Map DB schema to frontend expectation
                 const mapped = data.map(r => ({
                     id: r.id,
@@ -50,7 +54,14 @@ export function CakeDesignProvider({ children }) {
                     approvedPrice: r.price,
                     basePrice: r.price,
                     reviewNote: r.admin_notes,
-                    ordered: r.status === 'ordered'
+                    ordered: r.status === 'ordered',
+                    layers: r.layers || 1,
+                    frosting: r.frosting || '',
+                    topper: String(r.topper || '').startsWith('other:') ? 'other' : (r.topper || 'none'),
+                    otherTopper: String(r.topper || '').startsWith('other:') ? String(r.topper).slice(6) : '',
+                    color: r.color_code || '',
+                    text: r.message || '',
+                    decorations: r.special_instructions || ''
                 }));
 
                 const local = getLocalCakeDesigns();
@@ -108,9 +119,22 @@ export function CakeDesignProvider({ children }) {
                     status: 'pending',
                     price: newReq.basePrice
                 };
-                await supabase.from('cake_requests').insert([dbReq]);
+                const fullReq = {
+                    ...dbReq,
+                    layers: Number(newReq.layers) || 1,
+                    frosting: newReq.frosting || '',
+                    topper: newReq.topper === 'other' ? `other:${newReq.otherTopper || ''}` : (newReq.topper || ''),
+                    color_code: newReq.color || ''
+                };
+                let { error } = await supabase.from('cake_requests').insert([fullReq]);
+                if (error && error.code === 'PGRST204') {
+                    // table is missing one of the extra columns -> save the core fields instead of losing the request
+                    ({ error } = await supabase.from('cake_requests').insert([dbReq]));
+                }
+                if (error) throw error;
             } catch (error) {
-                console.warn('Note: Cake request saved locally');
+                console.error('Cake request NOT saved to Supabase:', error);
+                toast.warning('Saved on this device only — could not reach the database.');
             }
         }
 
@@ -135,13 +159,15 @@ export function CakeDesignProvider({ children }) {
 
         if (supabase) {
             try {
-                await supabase.from('cake_requests').update({ 
+                const { error } = await supabase.from('cake_requests').update({ 
                     status, 
                     price: opts.approvedPrice,
                     admin_notes: opts.reviewNote 
                 }).eq('id', id);
+                if (error) throw error;
             } catch (error) {
-                console.warn('Note: Review saved locally');
+                console.error('Review NOT saved to Supabase:', error);
+                toast.warning('Decision saved on this device only — could not reach the database.');
             }
         }
     };
@@ -155,9 +181,10 @@ export function CakeDesignProvider({ children }) {
 
         if (supabase) {
             try {
-                await supabase.from('cake_requests').update({ status: 'ordered' }).eq('id', id);
+                const { error } = await supabase.from('cake_requests').update({ status: 'ordered' }).eq('id', id);
+                if (error) throw error;
             } catch (error) {
-                console.warn('Note: Status marked ordered locally');
+                console.error('Ordered status NOT saved to Supabase:', error);
             }
         }
     };

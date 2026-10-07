@@ -3,6 +3,7 @@ import { useCakeDesign } from '../context/CakeDesignContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, Clock, Search, ChevronDown, X } from 'lucide-react';
+import { useSubmitLock } from '../hooks/useSubmitLock';
 const STATUS_STYLES = {
     pending: 'bg-yellow-100 text-yellow-700',
     approved: 'bg-green-100 text-green-700',
@@ -18,6 +19,9 @@ function ReviewModal({ request, onClose, onApprove, onReject, }) {
     const [action, setAction] = useState(null);
     const [price, setPrice] = useState(String(request.basePrice));
     const [note, setNote] = useState('');
+    const [confirmApprove, approving] = useSubmitLock(async (p, n) => { await onApprove(p, n); });
+    const [confirmReject, rejecting] = useSubmitLock(async (n) => { await onReject(n); });
+    const busy = approving || rejecting;
     const colorName = [
         { name: 'Pink', value: '#FFB6C1' }, { name: 'Blue', value: '#87CEEB' },
         { name: 'Purple', value: '#DDA0DD' }, { name: 'Green', value: '#90EE90' },
@@ -78,7 +82,7 @@ function ReviewModal({ request, onClose, onApprove, onReject, }) {
           {/* Already reviewed */}
           {request.status !== 'pending' && (<div className={`p-4 rounded-lg border ${request.status === 'approved' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
               <p className="text-sm font-semibold capitalize mb-1 text-gray-700">
-                {request.status === 'approved' ? '✓ Approved' : '✕ Rejected'} by {request.reviewedBy} · {request.reviewedAt}
+                {request.status === 'approved' ? '✓ Approved' : '✕ Denied'}{request.reviewedBy ? ` by ${request.reviewedBy}` : ''}{request.reviewedAt ? ` · ${request.reviewedAt}` : ''}
               </p>
               {request.status === 'approved' && request.approvedPrice !== undefined && (<p className="text-sm text-gray-600">Final price set: <strong>₱{request.approvedPrice.toLocaleString()}</strong></p>)}
               {request.reviewNote && <p className="text-sm text-gray-600 mt-1">Note: {request.reviewNote}</p>}
@@ -92,7 +96,7 @@ function ReviewModal({ request, onClose, onApprove, onReject, }) {
                   <CheckCircle className="w-4 h-4"/> Approve
                 </button>
                 <button onClick={() => setAction('reject')} className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-semibold transition-all flex items-center justify-center gap-2 ${action === 'reject' ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-200 text-gray-600 hover:border-red-300'}`}>
-                  <XCircle className="w-4 h-4"/> Reject
+                  <XCircle className="w-4 h-4"/> Deny
                 </button>
               </div>
 
@@ -112,9 +116,9 @@ function ReviewModal({ request, onClose, onApprove, onReject, }) {
                         toast.error('Enter a valid price');
                         return;
                     }
-                    onApprove(p, note);
-                }} className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors">
-                    Confirm Approval
+                    confirmApprove(p, note);
+                }} disabled={busy} className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {approving ? 'Saving…' : 'Confirm Approval'}
                   </button>
                 </div>)}
 
@@ -123,8 +127,8 @@ function ReviewModal({ request, onClose, onApprove, onReject, }) {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
                     <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="e.g. The requested design is beyond our current capabilities." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-sm resize-none"/>
                   </div>
-                  <button onClick={() => onReject(note)} className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors">
-                    Confirm Rejection
+                  <button onClick={() => confirmReject(note)} disabled={busy} className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {rejecting ? 'Saving…' : 'Confirm Denial'}
                   </button>
                 </div>)}
             </div>)}
@@ -152,14 +156,14 @@ export default function AdminDesignRequests() {
         approved: requests.filter((r) => r.status === 'approved').length,
         rejected: requests.filter((r) => r.status === 'rejected').length,
     };
-    const handleApprove = (id, approvedPrice, reviewNote) => {
-        reviewRequest(id, 'approved', { approvedPrice, reviewNote, reviewedBy: user?.name || 'Staff' });
+    const handleApprove = async (id, approvedPrice, reviewNote) => {
+        await reviewRequest(id, 'approved', { approvedPrice, reviewNote, reviewedBy: user?.name || 'Staff' });
         toast.success('Design approved — customer will be notified');
         setSelected(null);
     };
-    const handleReject = (id, reviewNote) => {
-        reviewRequest(id, 'rejected', { reviewNote, reviewedBy: user?.name || 'Staff' });
-        toast.success('Design rejected — customer will be notified');
+    const handleReject = async (id, reviewNote) => {
+        await reviewRequest(id, 'rejected', { reviewNote, reviewedBy: user?.name || 'Staff' });
+        toast.success('Design denied — customer will be notified');
         setSelected(null);
     };
     return (<div className="p-6">
@@ -179,7 +183,7 @@ export default function AdminDesignRequests() {
             };
             return (<button key={s} onClick={() => setFilter(s)} className={`p-4 rounded-xl transition-all shadow-sm text-left ${filter === s ? colors[s] + ' shadow-md' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
               <p className="text-2xl font-bold">{counts[s]}</p>
-              <p className="text-sm capitalize">{s === 'all' ? 'All Requests' : s}</p>
+              <p className="text-sm capitalize">{s === 'all' ? 'All Requests' : s === 'rejected' ? 'denied' : s}</p>
             </button>);
         })}
       </div>
@@ -207,7 +211,7 @@ export default function AdminDesignRequests() {
                     </div>
                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${STATUS_STYLES[req.status]}`}>
                       {STATUS_ICONS[req.status]}
-                      {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                      {req.status === 'rejected' ? 'Denied' : req.status.charAt(0).toUpperCase() + req.status.slice(1)}
                     </span>
                   </div>
                   <p className="text-sm text-gray-600">

@@ -3,7 +3,6 @@ import { Outlet, Link, Navigate, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, Package, ShoppingCart, Users, TrendingUp, Archive, LogOut, Menu, X, Home, UserCog, CircleUserRound, Cake, } from 'lucide-react';
 import { toast } from 'sonner';
-import { Toaster } from 'sonner';
 import logoImage from '../../imports/Gemini_Generated_Image_p60lg7p60lg7p60l-removebg-preview__1_.png';
 export default function AdminLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -105,7 +104,5 @@ export default function AdminLayout() {
         </main>
       </div>
 
-      {/* Toast Notifications */}
-      <Toaster position="top-right" richColors/>
     </div>);
 }

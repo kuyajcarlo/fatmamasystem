@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://eyummeftwbyytltkcnty.supabase.co';
-// Using the service role key only from this secure backend script to push the data
-const supabaseKey = 'sb_secret_rxuJ7_YrwhLWlxH19ipXSg_oZBk0wOX';
+// Run locally with: SUPABASE_SECRET_KEY=... node seed.js  (never commit the key)
+const supabaseKey = process.env.SUPABASE_SECRET_KEY; // set in your shell only, never commit
+if (!supabaseKey) { console.error('Set SUPABASE_SECRET_KEY in your environment first.'); process.exit(1); }
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const ALL_PRODUCTS = [

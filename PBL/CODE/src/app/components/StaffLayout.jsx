@@ -3,7 +3,6 @@ import { Outlet, Link, Navigate, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, ShoppingCart, MessageSquare, Archive, LogOut, Menu, X, Home, Package, CircleUserRound, Cake, } from 'lucide-react';
 import { toast } from 'sonner';
-import { Toaster } from 'sonner';
 import logoImage from '../../imports/Gemini_Generated_Image_p60lg7p60lg7p60l-removebg-preview__1_.png';
 export default function StaffLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -107,6 +106,5 @@ export default function StaffLayout() {
         </main>
       </div>
 
-      <Toaster position="top-right" richColors/>
     </div>);
 }

@@ -7,7 +7,6 @@ import CartModal from './CartModal';
 import Chatbot from './Chatbot';
 import PrivacyConsentModal from './PrivacyConsentModal';
 import CookieBanner from './CookieBanner';
-import { Toaster } from 'sonner';
 import { toast } from 'sonner';
 import logoImage from '../../imports/Gemini_Generated_Image_p60lg7p60lg7p60l-removebg-preview__1_.png';
 export default function Layout() {
@@ -283,8 +282,6 @@ export default function Layout() {
       {/* Cart Modal */}
       <CartModal isOpen={cartOpen} onClose={() => setCartOpen(false)}/>
 
-      {/* Toast Notifications */}
-      <Toaster position="top-right" richColors/>
 
       {/* AI Chatbot */}
       <Chatbot />
