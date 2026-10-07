@@ -184,7 +184,6 @@ export function AuthProvider({ children }) {
         };
 
         // Try pushing to Supabase
-        let savedInSupabase = false;
         if (supabase) {
             try {
                 // Check if already in Supabase
@@ -213,7 +212,6 @@ export function AuthProvider({ children }) {
                     .maybeSingle();
 
                 if (!error && newCustomer) {
-                    savedInSupabase = true;
                     const u = { ...newCustomer, role: 'customer' };
                     setUser(u);
                     saveLocalCustomer(u);
@@ -221,19 +219,19 @@ export function AuthProvider({ children }) {
                     return { success: true, user: u };
                 } else if (error) {
                     console.error("Supabase customer insert error:", error);
-                    if (error.code === '42501') {
-                        console.warn("Supabase RLS Policy: Run the SQL in Supabase SQL editor to enable public insert.");
-                    }
+                    toast.error(`Database error: ${error.message || 'Failed to save customer'}`);
+                    return { success: false };
                 }
             } catch (error) {
-                console.warn("Supabase signup sync note:", error);
+                console.error("Supabase signup sync error:", error);
+                toast.error(`Database error: ${error.message || 'Connection failed'}`);
+                return { success: false };
             }
         }
 
-        // Always save locally so customer account works reliably even if Supabase is offline/RLS blocked
+        // Offline / local fallback only when supabase client is not configured
         saveLocalCustomer(newCustomerObj);
         
-        // Also sync password map for profile change support
         try {
             const pwdMap = JSON.parse(localStorage.getItem('mama-co-user-passwords') || '{}');
             pwdMap[cleanEmail] = userData.password;
@@ -241,7 +239,7 @@ export function AuthProvider({ children }) {
         } catch {}
 
         setUser(newCustomerObj);
-        toast.success(savedInSupabase ? "Account created successfully!" : "Account created successfully!");
+        toast.success("Account created successfully!");
         return { success: true, user: newCustomerObj };
     };
 
