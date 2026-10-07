@@ -1,108 +1,167 @@
 -- ==============================================================================
--- FAT MAMA BAKESHOP & CAFE - COMPLETE SUPABASE DATABASE SETUP & FIX SCRIPT
--- Copy and paste this ENTIRE script into your Supabase project's SQL Editor and click RUN.
+-- FAT MAMA BAKESHOP & CAFE - COMPLETE SUPABASE ERD SCHEMA & FIX SCRIPT
+-- This script matches the ERD diagram and supports all frontend workflows:
+-- Customer registration, Login, Orders, Inquiries, Cake Design Requests,
+-- Inventory Management, Staff Accounts, and Role-Based Access.
+-- Copy and paste this script into your Supabase project's SQL Editor and click RUN.
 -- ==============================================================================
 
--- 1. Enable UUID Extension
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. Customers Table
+-- 1. USERS TABLE (Central ERD Entity)
+CREATE TABLE IF NOT EXISTS users (
+  user_id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  full_name VARCHAR(100) NOT NULL,
+  email VARCHAR(100) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  phone_number VARCHAR(20),
+  role VARCHAR(20) NOT NULL DEFAULT 'customer', -- 'customer', 'staff', 'admin'
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- 2. CUSTOMERS TABLE (ERD Customer Profile)
 CREATE TABLE IF NOT EXISTS customers (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  name text NOT NULL,
-  email text UNIQUE NOT NULL,
-  password text NOT NULL,
-  phone text,
-  address text,
-  role text DEFAULT 'customer',
-  created_at timestamp with time zone DEFAULT now()
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id UUID DEFAULT gen_random_uuid(),
+  user_id UUID,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  phone TEXT,
+  address TEXT,
+  role TEXT DEFAULT 'customer',
+  preferred_contact VARCHAR(50) DEFAULT 'email',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- 3. Staff Accounts Table
+-- 3. STAFF MEMBERS / ACCOUNTS TABLE (ERD Staff Entity)
 CREATE TABLE IF NOT EXISTS staff_accounts (
-  id text PRIMARY KEY,
-  name text NOT NULL,
-  email text UNIQUE NOT NULL,
-  password text NOT NULL,
-  role text DEFAULT 'staff',
-  status text NOT NULL DEFAULT 'active',
-  created_at timestamp with time zone DEFAULT now()
+  id TEXT PRIMARY KEY,
+  staff_id TEXT,
+  user_id UUID,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  employee_number VARCHAR(50),
+  position_title VARCHAR(100) DEFAULT 'Staff Member',
+  access_level VARCHAR(30) DEFAULT 'staff',
+  role VARCHAR(20) DEFAULT 'staff',
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- 4. Orders Table
+-- 4. ORDERS TABLE (ERD Order Entity)
 CREATE TABLE IF NOT EXISTS orders (
-  id text PRIMARY KEY,
-  user_email text NOT NULL,
-  user_name text NOT NULL,
-  date timestamp with time zone DEFAULT now(),
-  status text NOT NULL DEFAULT 'pending',
-  total numeric(10,2) NOT NULL,
-  delivery_address text,
-  items jsonb NOT NULL
+  id TEXT PRIMARY KEY,
+  order_id TEXT,
+  customer_id UUID,
+  user_email TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  phone TEXT,
+  date TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  status TEXT NOT NULL DEFAULT 'pending',
+  order_status VARCHAR(30) DEFAULT 'pending',
+  order_type VARCHAR(20) DEFAULT 'delivery',
+  total NUMERIC(10,2) NOT NULL,
+  total_amount NUMERIC(10,2),
+  delivery_address TEXT,
+  items JSONB NOT NULL,
+  customer_notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- 5. Inquiries Table
+-- 5. INQUIRIES TABLE (ERD Inquiries Entity)
 CREATE TABLE IF NOT EXISTS inquiries (
-  id text PRIMARY KEY,
-  name text NOT NULL,
-  email text NOT NULL,
-  subject text NOT NULL,
-  message text NOT NULL,
-  date timestamp with time zone DEFAULT now(),
-  status text NOT NULL DEFAULT 'new'
+  id TEXT PRIMARY KEY,
+  inquiry_id TEXT,
+  customer_id UUID,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone_number TEXT,
+  phone TEXT,
+  subject TEXT NOT NULL,
+  message TEXT NOT NULL,
+  date TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  status TEXT NOT NULL DEFAULT 'new',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- 6. Cake Design Requests Table
+-- 6. CAKE CUSTOM DESIGNS TABLE (ERD Cake Design Entity)
 CREATE TABLE IF NOT EXISTS cake_requests (
-  id text PRIMARY KEY,
-  user_email text NOT NULL,
-  user_name text NOT NULL,
-  date timestamp with time zone DEFAULT now(),
-  status text NOT NULL DEFAULT 'pending',
-  occasion text NOT NULL,
-  flavor text NOT NULL,
-  size text NOT NULL,
-  message text,
-  reference_image text,
-  special_instructions text,
-  price numeric(10,2),
-  admin_notes text
+  id TEXT PRIMARY KEY,
+  design_id TEXT,
+  customer_id UUID,
+  reviewed_by_user_id UUID,
+  user_email TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  date TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  status TEXT NOT NULL DEFAULT 'pending',
+  design_status VARCHAR(20) DEFAULT 'pending',
+  occasion TEXT NOT NULL,
+  flavor TEXT NOT NULL,
+  frosting TEXT,
+  size TEXT NOT NULL,
+  layers INT DEFAULT 1,
+  topper TEXT,
+  color_code TEXT,
+  message TEXT,
+  prompt_text TEXT,
+  reference_image TEXT,
+  generated_image_url TEXT,
+  special_instructions TEXT,
+  price NUMERIC(10,2),
+  admin_notes TEXT,
+  decline_reason TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- 7. Products Table
+-- 7. PRODUCTS TABLE (ERD Product Entity)
 CREATE TABLE IF NOT EXISTS products (
-  id text PRIMARY KEY,
-  code text,
-  name text NOT NULL,
-  category text NOT NULL,
-  price numeric(10,2) NOT NULL,
-  status text NOT NULL DEFAULT 'active',
-  popular boolean DEFAULT false,
-  description text,
-  "from" boolean DEFAULT false
+  id TEXT PRIMARY KEY,
+  product_id TEXT,
+  code TEXT,
+  sku VARCHAR(50),
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  price NUMERIC(10,2) NOT NULL,
+  base_price NUMERIC(10,2),
+  status TEXT NOT NULL DEFAULT 'active',
+  is_available BOOLEAN DEFAULT true,
+  popular BOOLEAN DEFAULT false,
+  description TEXT,
+  image_url TEXT,
+  "from" BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- 8. Inventory Table
+-- 8. INVENTORY ITEMS TABLE (ERD Inventory Entity)
 CREATE TABLE IF NOT EXISTS inventory (
-  id text PRIMARY KEY,
-  code text,
-  name text NOT NULL,
-  category text NOT NULL,
-  current_stock integer NOT NULL DEFAULT 0,
-  min_stock integer NOT NULL DEFAULT 10,
-  max_stock integer NOT NULL DEFAULT 100,
-  unit text NOT NULL DEFAULT 'pcs',
-  supplier text,
-  status text NOT NULL DEFAULT 'in-stock',
-  last_restocked text
+  id TEXT PRIMARY KEY,
+  inventory_item_id TEXT,
+  code TEXT,
+  name TEXT NOT NULL,
+  item_name VARCHAR(100),
+  category TEXT NOT NULL,
+  current_stock INTEGER NOT NULL DEFAULT 0,
+  min_stock INTEGER NOT NULL DEFAULT 10,
+  max_stock INTEGER NOT NULL DEFAULT 100,
+  unit TEXT NOT NULL DEFAULT 'pcs',
+  unit_of_measure VARCHAR(20) DEFAULT 'pcs',
+  supplier TEXT,
+  supplier_name VARCHAR(100),
+  status TEXT NOT NULL DEFAULT 'in-stock',
+  last_restocked TEXT,
+  last_restocked_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- ==============================================================================
--- ROW LEVEL SECURITY (RLS) FIX
--- This fixes the error: "new row violates row-level security policy for table"
+-- ROW LEVEL SECURITY (RLS) UNBLOCKING
+-- Allows frontend operations to read and write directly to Supabase
 -- ==============================================================================
 
--- Option A: Disable RLS on all tables so frontend operations are never blocked
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE customers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE staff_accounts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE orders DISABLE ROW LEVEL SECURITY;
@@ -111,7 +170,9 @@ ALTER TABLE cake_requests DISABLE ROW LEVEL SECURITY;
 ALTER TABLE products DISABLE ROW LEVEL SECURITY;
 ALTER TABLE inventory DISABLE ROW LEVEL SECURITY;
 
--- Option B: Permissive Policies in case RLS is re-enabled in Supabase dashboard
+DROP POLICY IF EXISTS "Allow public all on users" ON users;
+CREATE POLICY "Allow public all on users" ON users FOR ALL TO public USING (true) WITH CHECK (true);
+
 DROP POLICY IF EXISTS "Allow public all on customers" ON customers;
 CREATE POLICY "Allow public all on customers" ON customers FOR ALL TO public USING (true) WITH CHECK (true);
 
@@ -134,17 +195,17 @@ DROP POLICY IF EXISTS "Allow public all on inventory" ON inventory;
 CREATE POLICY "Allow public all on inventory" ON inventory FOR ALL TO public USING (true) WITH CHECK (true);
 
 -- ==============================================================================
--- DEFAULT TEST ACCOUNTS (Pre-seeded for testing)
+-- DEFAULT TEST SEED DATA
 -- ==============================================================================
 
--- Default Administrator
-INSERT INTO staff_accounts (id, name, email, password, role, status, created_at)
-VALUES ('ADMIN-001', 'Administrator', 'admin@fatmama.ph', 'admin123', 'admin', 'active', now())
+-- Administrator
+INSERT INTO staff_accounts (id, name, email, password, role, position_title, access_level, status, created_at)
+VALUES ('ADMIN-001', 'Administrator', 'admin@fatmama.ph', 'admin123', 'admin', 'Store Manager', 'admin', 'active', now())
 ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, role = 'admin', status = 'active';
 
--- Default Staff Member
-INSERT INTO staff_accounts (id, name, email, password, role, status, created_at)
-VALUES ('STAFF-001', 'Staff Member', 'staff@fatmama.ph', 'staff123', 'staff', 'active', now())
+-- Staff Member
+INSERT INTO staff_accounts (id, name, email, password, role, position_title, access_level, status, created_at)
+VALUES ('STAFF-001', 'Staff Member', 'staff@fatmama.ph', 'staff123', 'staff', 'Barista / Baker', 'staff', 'active', now())
 ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, role = 'staff', status = 'active';
 
 -- Default Customer Account

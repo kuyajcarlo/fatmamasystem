@@ -92,7 +92,7 @@ export default function ProfilePage() {
     const { savedDeliveryInfo, saveDeliveryInfo } = useDelivery();
     const { requests: allDesignRequests, markOrdered } = useCakeDesign();
     const { addItem } = useCart();
-    const myDesignRequests = allDesignRequests.filter((r) => r.customerEmail === user?.email);
+    const myDesignRequests = allDesignRequests.filter((r) => (r.customerEmail || r.userEmail || '').toLowerCase() === (user?.email || '').toLowerCase());
     const pendingDesigns = myDesignRequests.filter((r) => r.status === 'pending').length;
     const approvedDesigns = myDesignRequests.filter((r) => r.status === 'approved' && !r.ordered).length;
     const role = user?.role || 'user';

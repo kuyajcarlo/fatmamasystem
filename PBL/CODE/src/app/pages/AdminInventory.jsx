@@ -22,6 +22,8 @@ export default function AdminInventory() {
     const [formErrors, setFormErrors] = useState({});
     const [inventory, setInventory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [updatingId, setUpdatingId] = useState(null);
 
     useEffect(() => {
         fetchInventory();
@@ -54,9 +56,12 @@ export default function AdminInventory() {
     };
 
     const increaseStock = async (item) => {
+        if (updatingId === item.id) return;
+        setUpdatingId(item.id);
         const newStock = Math.min(item.current_stock + 1, item.max_stock);
         if (newStock === item.current_stock) {
             toast.warning(`Cannot exceed max stock of ${item.max_stock} ${item.unit}`);
+            setUpdatingId(null);
             return;
         }
         
@@ -80,13 +85,18 @@ export default function AdminInventory() {
             }
         } catch (error) {
             toast.error('Failed to update stock');
+        } finally {
+            setUpdatingId(null);
         }
     };
 
     const decreaseStock = async (item) => {
+        if (updatingId === item.id) return;
+        setUpdatingId(item.id);
         const newStock = Math.max(item.current_stock - 1, 0);
         if (newStock === item.current_stock) {
             toast.warning('Stock is already at 0');
+            setUpdatingId(null);
             return;
         }
 
@@ -113,6 +123,8 @@ export default function AdminInventory() {
             }
         } catch (error) {
             toast.error('Failed to update stock');
+        } finally {
+            setUpdatingId(null);
         }
     };
 
@@ -151,12 +163,15 @@ export default function AdminInventory() {
     };
 
     const handleAddItem = async () => {
+        if (isSubmitting) return;
+
         const errors = validateForm();
         if (Object.keys(errors).length) {
             setFormErrors(errors);
             return;
         }
         
+        setIsSubmitting(true);
         const current = Number(form.current_stock);
         const min = Number(form.min_stock);
         const max = Number(form.max_stock);
@@ -197,6 +212,8 @@ export default function AdminInventory() {
         } catch (error) {
             toast.error('Failed to add inventory item');
             console.error(error);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -363,10 +380,10 @@ export default function AdminInventory() {
                                             </td>
                                             <td className="py-4 px-6 text-right">
                                                 <div className="flex items-center justify-end gap-1">
-                                                    <button onClick={() => increaseStock(item)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title={`Add stock (Max: ${item.max_stock})`}>
+                                                    <button disabled={updatingId === item.id} onClick={() => increaseStock(item)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-40" title={`Add stock (Max: ${item.max_stock})`}>
                                                         <Plus className="w-4 h-4" />
                                                     </button>
-                                                    <button onClick={() => decreaseStock(item)} className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors" title="Remove stock">
+                                                    <button disabled={updatingId === item.id} onClick={() => decreaseStock(item)} className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors disabled:opacity-40" title="Remove stock">
                                                         <Minus className="w-4 h-4" />
                                                     </button>
                                                     <button onClick={() => deleteItem(item.id, item.name)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete item">
@@ -422,11 +439,11 @@ export default function AdminInventory() {
                         </div>
 
                         <div className="flex gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl">
-                            <button onClick={closeModal} className="flex-1 py-2.5 border border-gray-300 bg-white rounded-lg text-gray-700 hover:bg-gray-100 transition-colors font-medium text-sm">
+                            <button onClick={closeModal} disabled={isSubmitting} className="flex-1 py-2.5 border border-gray-300 bg-white rounded-lg text-gray-700 hover:bg-gray-100 transition-colors font-medium text-sm disabled:opacity-50">
                                 Cancel
                             </button>
-                            <button onClick={handleAddItem} className="flex-1 py-2.5 bg-[#D4A843] hover:bg-[#B8923A] text-white rounded-lg font-medium text-sm transition-colors shadow-sm">
-                                Save to Database
+                            <button onClick={handleAddItem} disabled={isSubmitting} className="flex-1 py-2.5 bg-[#D4A843] hover:bg-[#B8923A] text-white rounded-lg font-medium text-sm transition-colors shadow-sm disabled:opacity-50">
+                                {isSubmitting ? 'Saving to Database...' : 'Save to Database'}
                             </button>
                         </div>
                     </div>
