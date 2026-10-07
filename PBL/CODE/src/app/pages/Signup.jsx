@@ -9,12 +9,14 @@ export default function Signup() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { signup } = useAuth();
     const { hasConsented, setShowConsentModal } = usePrivacy();
-    const handleSubmit = (e) => {
+    
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Validation
+        
         if (!name || !email || !password || !confirmPassword) {
             toast.error('Please fill in all fields');
             return;
@@ -27,17 +29,19 @@ export default function Signup() {
             toast.error('Password must be at least 6 characters');
             return;
         }
-        // In a real app, this would create an account with a backend
-        login({ email, name, role: 'user' });
-        toast.success('Account created successfully!');
-        navigate('/');
-        // Show privacy modal if not consented
-        if (!hasConsented) {
-            setTimeout(() => {
-                setShowConsentModal(true);
-            }, 500);
+        
+        setLoading(true);
+        const result = await signup({ name, email, password });
+        setLoading(false);
+        
+        if (result.success) {
+            navigate('/');
+            if (!hasConsented) {
+                setTimeout(() => setShowConsentModal(true), 500);
+            }
         }
     };
+    
     return (<div className="min-h-[calc(100vh-400px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
@@ -92,8 +96,8 @@ export default function Signup() {
           </div>
 
           <div>
-            <button type="submit" className="w-full bg-[#D4A843] hover:bg-[#B8923A] text-white py-3 rounded-md transition-colors font-medium">
-              Create Account
+            <button type="submit" disabled={loading} className="w-full bg-[#D4A843] hover:bg-[#B8923A] text-white py-3 rounded-md transition-colors font-medium disabled:opacity-50">
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </div>
 
@@ -106,14 +110,6 @@ export default function Signup() {
             </p>
           </div>
         </form>
-
-        {/* Test Credentials */}
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800 font-semibold mb-2">Or use a test account:</p>
-          <div className="space-y-1 text-sm text-blue-700">
-            <p><strong>User:</strong> user@fatmama.ph / user123</p>
-          </div>
-        </div>
 
         <div className="text-center">
           <Link to="/" className="text-sm text-gray-600 hover:text-gray-900">

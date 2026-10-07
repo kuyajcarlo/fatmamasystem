@@ -7,62 +7,34 @@ import { LogIn } from 'lucide-react';
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { login } = useAuth();
     const { hasConsented, setShowConsentModal } = usePrivacy();
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Simple validation
         if (!email || !password) {
             toast.error('Please fill in all fields');
             return;
         }
-        // Check for admin credentials
-        if (email === 'admin@fatmama.ph' && password === 'admin123') {
-            login({ email, name: 'Admin', role: 'admin' });
-            toast.success('Welcome back, Admin!');
-            navigate('/admin');
-            return;
-        }
-        // Check for staff credentials in local storage
-        try {
-            const rawStaff = localStorage.getItem('mama-co-staff-accounts');
-            if (rawStaff) {
-                const staffAccounts = JSON.parse(rawStaff);
-                const staffUser = staffAccounts.find((s) => s.email === email && s.password === password && s.status === 'active');
-                if (staffUser) {
-                    login({ email, name: staffUser.name, role: 'staff' });
-                    toast.success(`Welcome back, ${staffUser.name}!`);
-                    navigate('/staff');
-                    return;
+        
+        setLoading(true);
+        const result = await login(email, password);
+        setLoading(false);
+        
+        if (result.success) {
+            toast.success('Welcome back!');
+            
+            if (email.includes('admin')) {
+                navigate('/admin');
+            } else if (email.includes('staff')) {
+                navigate('/staff');
+            } else {
+                navigate('/');
+                if (!hasConsented) {
+                    setTimeout(() => setShowConsentModal(true), 500);
                 }
             }
-        }
-        catch (e) {
-            console.error('Error checking staff accounts:', e);
-        }
-        // Check for test user credentials
-        if (email === 'user@fatmama.ph' && password === 'user123') {
-            login({ email, name: 'Test User', role: 'user' });
-            toast.success('Welcome back, Test User!');
-            navigate('/');
-            // Show privacy modal if not consented
-            if (!hasConsented) {
-                setTimeout(() => {
-                    setShowConsentModal(true);
-                }, 500);
-            }
-            return;
-        }
-        // For any other email/password, create a user account
-        login({ email, name: email.split('@')[0], role: 'user' });
-        toast.success('Welcome back!');
-        navigate('/');
-        // Show privacy modal if not consented
-        if (!hasConsented) {
-            setTimeout(() => {
-                setShowConsentModal(true);
-            }, 500);
         }
     };
     return (<div className="min-h-[calc(100vh-400px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
@@ -75,17 +47,6 @@ export default function Login() {
           </div>
           <h2 className="text-4xl font-bold mb-2">Welcome Back</h2>
           <p className="text-gray-600">Sign in to your account</p>
-        </div>
-
-        {/* Test Credentials */}
-        <div className="mt-6 space-y-3">
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800 font-semibold mb-2">Test Accounts:</p>
-            <div className="space-y-1 text-sm text-blue-700">
-              <p><strong>Admin:</strong> admin@fatmama.ph / admin123</p>
-              <p><strong>User:</strong> user@fatmama.ph / user123</p>
-            </div>
-          </div>
         </div>
 
         <form className="mt-8 space-y-6 bg-white p-8 rounded-lg shadow-md" onSubmit={handleSubmit}>
@@ -105,24 +66,9 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-[#D4A843] focus:ring-[#D4A843] border-gray-300 rounded"/>
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                Remember me
-              </label>
-            </div>
-
-            <div className="text-sm">
-              <a href="#" className="font-medium text-[#D4A843] hover:text-[#D4A843]">
-                Forgot password?
-              </a>
-            </div>
-          </div>
-
           <div>
-            <button type="submit" className="w-full bg-[#D4A843] hover:bg-[#B8923A] text-white py-3 rounded-md transition-colors font-medium">
-              Sign In
+            <button type="submit" disabled={loading} className="w-full bg-[#D4A843] hover:bg-[#B8923A] text-white py-3 rounded-md transition-colors font-medium disabled:opacity-50">
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </div>
 

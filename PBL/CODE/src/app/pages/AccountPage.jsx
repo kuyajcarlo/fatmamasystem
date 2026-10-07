@@ -25,14 +25,14 @@ export default function AccountPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const redirectTo = searchParams.get('redirect') ? `/${searchParams.get('redirect')}` : '/';
-    const { login } = useAuth();
+    const { login, signup } = useAuth();
     const { hasConsented, setShowConsentModal } = usePrivacy();
     const showPrivacyModal = () => {
         if (!hasConsented) {
             setTimeout(() => setShowConsentModal(true), 500);
         }
     };
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
         const errs = {};
         if (!loginEmail.trim()) {
@@ -78,26 +78,14 @@ export default function AccountPage() {
             showPrivacyModal();
             return;
         }
-        // Check stored user passwords (set via profile or signup)
-        const userPasswords = (() => {
-            try {
-                return JSON.parse(localStorage.getItem('mama-co-user-passwords') || '{}');
-            }
-            catch {
-                return {};
-            }
-        })();
-        const storedPwd = userPasswords[loginEmail.toLowerCase()];
-        if (storedPwd && storedPwd !== loginPassword) {
-            setLoginErrors({ password: 'Incorrect password' });
-            return;
+        const res = await login(loginEmail, loginPassword);
+        if (res?.success) {
+            toast.success('Welcome back!');
+            navigate(redirectTo);
+            showPrivacyModal();
         }
-        login({ email: loginEmail, name: loginEmail.split('@')[0], role: 'user' });
-        toast.success('Welcome back!');
-        navigate(redirectTo);
-        showPrivacyModal();
     };
-    const handleSignup = (e) => {
+    const handleSignup = async (e) => {
         e.preventDefault();
         const errs = {};
         if (!signupName.trim())
@@ -127,21 +115,15 @@ export default function AccountPage() {
             return;
         }
         setSignupErrors({});
-        // Store password so the user can log in with it and change it via profile
-        const pwdMap = (() => {
-            try {
-                return JSON.parse(localStorage.getItem('mama-co-user-passwords') || '{}');
-            }
-            catch {
-                return {};
-            }
-        })();
-        pwdMap[signupEmail.toLowerCase()] = signupPassword;
-        localStorage.setItem('mama-co-user-passwords', JSON.stringify(pwdMap));
-        login({ email: signupEmail, name: signupName, role: 'user' });
-        toast.success('Account created successfully!');
-        navigate(redirectTo);
-        showPrivacyModal();
+        const res = await signup({
+            name: signupName,
+            email: signupEmail,
+            password: signupPassword,
+        });
+        if (res?.success) {
+            navigate(redirectTo);
+            showPrivacyModal();
+        }
     };
     return (<div className="min-h-screen flex">
       {/* Left panel — brand */}
