@@ -84,7 +84,10 @@ export function OrderProvider({ children }) {
             city: orderData.city || '',
             province: orderData.province || '',
             zipCode: orderData.zipCode || '',
-            delivery_address: `${orderData.address || ''}, ${orderData.city || ''}, ${orderData.province || ''} ${orderData.zipCode || ''}`.trim(),
+            lat: orderData.lat || null,
+            lng: orderData.lng || null,
+            delivery_address: `${orderData.address || ''}, ${orderData.city || ''}, ${orderData.province || ''} ${orderData.zipCode || ''}`.trim()
+                + (orderData.lat && orderData.lng ? ` | Map pin: https://www.openstreetmap.org/?mlat=${orderData.lat}&mlon=${orderData.lng}#map=18/${orderData.lat}/${orderData.lng}` : ''),
             notes: orderData.notes || '',
             items: orderData.items || [],
             total: orderData.total || 0,

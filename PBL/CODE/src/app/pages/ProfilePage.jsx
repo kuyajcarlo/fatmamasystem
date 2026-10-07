@@ -8,6 +8,7 @@ import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router';
 import { User, Lock, Eye, EyeOff, ShieldCheck, Briefcase, Save, MapPin, Phone, ShoppingBag, MessageSquare, CheckCircle, Cake, Clock, XCircle, ShoppingCart, } from 'lucide-react';
 import { toast } from 'sonner';
+import AddressPicker from '../components/AddressPicker';
 // ── Password helpers ──────────────────────────────────────────────────────────
 function getUserPasswords() {
     try {
@@ -95,7 +96,8 @@ export default function ProfilePage() {
     const myDesignRequests = allDesignRequests.filter((r) => (r.customerEmail || r.userEmail || '').toLowerCase() === (user?.email || '').toLowerCase());
     const pendingDesigns = myDesignRequests.filter((r) => r.status === 'pending').length;
     const approvedDesigns = myDesignRequests.filter((r) => r.status === 'approved' && !r.ordered).length;
-    const role = user?.role || 'user';
+    // accounts created through sign-up have role 'customer'; this page calls them 'user'
+    const role = (!user?.role || user.role === 'customer') ? 'user' : user.role;
     const meta = ROLE_META[role] ?? ROLE_META.user;
     const RoleIcon = meta.icon;
     // ── Personal info ─────────────────────────────────────────────────────────
@@ -133,6 +135,8 @@ export default function ProfilePage() {
         city: savedDeliveryInfo?.city || '',
         province: savedDeliveryInfo?.province || '',
         zipCode: savedDeliveryInfo?.zipCode || '',
+        lat: savedDeliveryInfo?.lat || null,
+        lng: savedDeliveryInfo?.lng || null,
     });
     const [deliveryErrors, setDeliveryErrors] = useState({});
     const setDField = (key) => (v) => setDelivery((d) => ({ ...d, [key]: v }));
@@ -337,6 +341,7 @@ export default function ProfilePage() {
               <Field label="First Name" value={delivery.firstName} onChange={setDField('firstName')} error={deliveryErrors.firstName} placeholder="Juan"/>
               <Field label="Last Name" value={delivery.lastName} onChange={setDField('lastName')} error={deliveryErrors.lastName} placeholder="Dela Cruz"/>
             </div>
+            <AddressPicker lat={delivery.lat} lng={delivery.lng} onPick={(f) => setDelivery((d) => ({ ...d, ...Object.fromEntries(Object.entries(f).filter(([, v]) => v !== '' && v != null)) }))}/>
             <Field label="Street Address" value={delivery.address} onChange={setDField('address')} error={deliveryErrors.address} placeholder="123 Rizal Street, Barangay San Juan"/>
             <div className="grid grid-cols-3 gap-4">
               <Field label="City" value={delivery.city} onChange={setDField('city')} error={deliveryErrors.city} placeholder="Lipa City"/>

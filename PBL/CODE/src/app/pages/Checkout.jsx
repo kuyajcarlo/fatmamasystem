@@ -8,6 +8,7 @@ import { useDelivery } from '../context/DeliveryContext';
 import { CreditCard, Truck, MapPin, Phone, User, Mail, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSubmitLock } from '../hooks/useSubmitLock';
+import AddressPicker from '../components/AddressPicker';
 export default function Checkout() {
     const navigate = useNavigate();
     const { items, totalPrice, clearCart } = useCart();
@@ -26,6 +27,8 @@ export default function Checkout() {
         city: savedDeliveryInfo?.city || '',
         province: savedDeliveryInfo?.province || '',
         zipCode: savedDeliveryInfo?.zipCode || '',
+        lat: savedDeliveryInfo?.lat || null,
+        lng: savedDeliveryInfo?.lng || null,
         notes: '',
     });
     const [errors, setErrors] = useState({});
@@ -113,6 +116,8 @@ export default function Checkout() {
             city: formData.city,
             province: formData.province,
             zipCode: formData.zipCode,
+            lat: formData.lat,
+            lng: formData.lng,
             notes: formData.notes,
             items: items.map(item => ({
                 id: item.id,
@@ -135,6 +140,8 @@ export default function Checkout() {
                 city: formData.city,
                 province: formData.province,
                 zipCode: formData.zipCode,
+                lat: formData.lat,
+                lng: formData.lng,
             });
         }
         // Save order
@@ -222,6 +229,14 @@ export default function Checkout() {
             : 'border-gray-300 focus:ring-[#2C5F4F]'}`} placeholder="0917 123 4567"/>
                     {errors.phone && (<p className="text-red-500 text-xs mt-1">{errors.phone}</p>)}
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-2 text-gray-700">
+                    <MapPin className="w-4 h-4 inline mr-1"/>
+                    Pin your delivery location
+                  </label>
+                  <AddressPicker lat={formData.lat} lng={formData.lng} onPick={(f) => setFormData((prev) => ({ ...prev, ...Object.fromEntries(Object.entries(f).filter(([, v]) => v !== '' && v != null)) }))}/>
                 </div>
 
                 <div>
