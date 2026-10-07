@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, Clock, Search, ChevronDown, X } from 'lucide-react';
 import { useSubmitLock } from '../hooks/useSubmitLock';
+const money = (n) => Number(n ?? 0).toLocaleString();
 const STATUS_STYLES = {
     pending: 'bg-yellow-100 text-yellow-700',
     approved: 'bg-green-100 text-green-700',
@@ -17,7 +18,7 @@ const STATUS_ICONS = {
 // ── Review Modal ──────────────────────────────────────────────────────────────
 function ReviewModal({ request, onClose, onApprove, onReject, }) {
     const [action, setAction] = useState(null);
-    const [price, setPrice] = useState(String(request.basePrice));
+    const [price, setPrice] = useState(String(request.basePrice || ''));
     const [note, setNote] = useState('');
     const [confirmApprove, approving] = useSubmitLock(async (p, n) => { await onApprove(p, n); });
     const [confirmReject, rejecting] = useSubmitLock(async (n) => { await onReject(n); });
@@ -61,7 +62,7 @@ function ReviewModal({ request, onClose, onApprove, onReject, }) {
             ['Occasion', request.occasion],
             ['Color', colorName],
             ['Cake Text', request.text || '—'],
-            ['Base Price', `₱${request.basePrice.toLocaleString()}`],
+            ['Base Price', `₱${money(request.basePrice)}`],
         ].map(([label, value]) => (<div key={label}>
                 <span className="text-gray-500 font-medium">{label}: </span>
                 <span className="text-gray-800">{value}</span>
@@ -84,7 +85,7 @@ function ReviewModal({ request, onClose, onApprove, onReject, }) {
               <p className="text-sm font-semibold capitalize mb-1 text-gray-700">
                 {request.status === 'approved' ? '✓ Approved' : '✕ Denied'}{request.reviewedBy ? ` by ${request.reviewedBy}` : ''}{request.reviewedAt ? ` · ${request.reviewedAt}` : ''}
               </p>
-              {request.status === 'approved' && request.approvedPrice !== undefined && (<p className="text-sm text-gray-600">Final price set: <strong>₱{request.approvedPrice.toLocaleString()}</strong></p>)}
+              {request.status === 'approved' && request.approvedPrice !== undefined && (<p className="text-sm text-gray-600">Final price set: <strong>₱{money(request.approvedPrice)}</strong></p>)}
               {request.reviewNote && <p className="text-sm text-gray-600 mt-1">Note: {request.reviewNote}</p>}
             </div>)}
 
@@ -104,7 +105,7 @@ function ReviewModal({ request, onClose, onApprove, onReject, }) {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Confirmed Price (₱)</label>
                     <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 text-sm" placeholder="e.g. 850"/>
-                    <p className="text-xs text-gray-400 mt-1">Adjust from base ₱{request.basePrice.toLocaleString()} if needed.</p>
+                    <p className="text-xs text-gray-400 mt-1">Adjust from base ₱{money(request.basePrice)} if needed.</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Note to Customer (optional)</label>
@@ -145,9 +146,9 @@ export default function AdminDesignRequests() {
     const [selected, setSelected] = useState(null);
     const filtered = requests.filter((r) => {
         const matchFilter = filter === 'all' || r.status === filter;
-        const matchSearch = r.id.toLowerCase().includes(search.toLowerCase()) ||
-            r.customerName.toLowerCase().includes(search.toLowerCase()) ||
-            r.customerEmail.toLowerCase().includes(search.toLowerCase());
+        const matchSearch = String(r.id || '').toLowerCase().includes(search.toLowerCase()) ||
+            String(r.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
+            String(r.customerEmail || '').toLowerCase().includes(search.toLowerCase());
         return matchFilter && matchSearch;
     });
     const counts = {
@@ -218,8 +219,8 @@ export default function AdminDesignRequests() {
                     {req.sizeName} · {req.layers}L · {req.flavor} · {req.frosting}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    {req.occasion} · Submitted {req.submittedAt} · Base ₱{req.basePrice.toLocaleString()}
-                    {req.status === 'approved' && req.approvedPrice !== undefined && (<span className="text-green-600 font-medium"> → Approved ₱{req.approvedPrice.toLocaleString()}</span>)}
+                    {req.occasion} · Submitted {req.submittedAt} · Base ₱{money(req.basePrice)}
+                    {req.status === 'approved' && req.approvedPrice !== undefined && (<span className="text-green-600 font-medium"> → Approved ₱{money(req.approvedPrice)}</span>)}
                   </p>
                 </div>
                 <ChevronDown className="w-4 h-4 text-gray-300 self-center shrink-0 -rotate-90"/>

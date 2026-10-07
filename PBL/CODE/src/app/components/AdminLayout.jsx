@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Outlet, Link, Navigate, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Package, ShoppingCart, Users, TrendingUp, Archive, LogOut, Menu, X, Home, UserCog, CircleUserRound, Cake, } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Users, TrendingUp, Archive, LogOut, Menu, X, Home, UserCog, CircleUserRound, Cake, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import logoImage from '../../imports/Gemini_Generated_Image_p60lg7p60lg7p60l-removebg-preview__1_.png';
 export default function AdminLayout() {
@@ -26,6 +26,7 @@ export default function AdminLayout() {
         { path: '/admin/inventory', icon: Archive, label: 'Inventory Tracker' },
         { path: '/admin/staff', icon: UserCog, label: 'Manage Staff' },
         { path: '/admin/designs', icon: Cake, label: 'Design Requests' },
+        { path: '/admin/chats', icon: MessageCircle, label: 'Chat Monitor' },
         { path: '/admin/profile', icon: CircleUserRound, label: 'My Profile' },
     ];
     const isActive = (path) => {

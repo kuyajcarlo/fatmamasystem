@@ -2,8 +2,41 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Send } from 'lucide-react';
 import { useLocation } from 'react-router';
 import chatbotIcon from '../../imports/image-13.png';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+
+// One conversation id per visitor; a new one starts after 12 hours of silence.
+const SESSION_KEY = 'fatmama-chat-session';
+function getChatSessionId() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+        if (saved && Date.now() - saved.t < 12 * 60 * 60 * 1000) {
+            localStorage.setItem(SESSION_KEY, JSON.stringify({ id: saved.id, t: Date.now() }));
+            return saved.id;
+        }
+    } catch {}
+    const id = `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ id, t: Date.now() })); } catch {}
+    return id;
+}
 export default function Chatbot() {
     const location = useLocation();
+    const { user } = useAuth();
+    // Save every message so the admin can monitor chats in the dashboard (Admin → Chat Monitor)
+    const logMessage = async (sender, text) => {
+        try {
+            const { error } = await supabase.from('chat_messages').insert([{
+                session_id: getChatSessionId(),
+                sender,
+                text,
+                user_email: user?.email || null,
+                user_name: user?.name || null,
+            }]);
+            if (error) console.warn('Chat message not logged:', error.message);
+        } catch (e) {
+            console.warn('Chat message not logged:', e);
+        }
+    };
     const [isOpen, setIsOpen] = useState(false);
     useEffect(() => {
         if (location.pathname === '/') {
@@ -78,14 +111,18 @@ export default function Chatbot() {
             sender: 'user',
             timestamp: new Date(),
         };
+        const sentText = inputValue;
         setMessages((prev) => [...prev, userMessage]);
         setInputValue('');
         setIsTyping(true);
+        logMessage('user', sentText);
         // Simulate bot thinking delay
         setTimeout(() => {
+            const botText = getBotResponse(sentText);
+            logMessage('bot', botText);
             const botResponse = {
                 id: (Date.now() + 1).toString(),
-                text: getBotResponse(inputValue),
+                text: botText,
                 sender: 'bot',
                 timestamp: new Date(),
             };

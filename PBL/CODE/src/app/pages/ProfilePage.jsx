@@ -435,7 +435,7 @@ export default function ProfilePage() {
 
                           {/* Approved state — show price + Order Now */}
                           {req.status === 'approved' && !req.ordered && req.approvedPrice !== undefined && (<div className="mt-3 flex items-center justify-between">
-                              <span className="text-sm font-bold text-[#D4A843]">Approved Price: ₱{req.approvedPrice.toLocaleString()}</span>
+                              <span className="text-sm font-bold text-[#D4A843]">Approved Price: ₱{Number(req.approvedPrice ?? 0).toLocaleString()}</span>
                               <button onClick={() => {
                                 const topperDisplay = req.topper === 'other'
                                     ? req.otherTopper || 'Custom Topper'

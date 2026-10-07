@@ -22,6 +22,7 @@ import AdminSales from "./pages/AdminSales";
 import AdminInventory from "./pages/AdminInventory";
 import AdminManageStaff from "./pages/AdminManageStaff";
 import AdminDesignRequests from "./pages/AdminDesignRequests";
+import AdminChats from "./pages/AdminChats";
 import ProfilePage from "./pages/ProfilePage";
 export const router = createBrowserRouter([
     { path: "/account", Component: AccountPage },
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
             { path: "inventory", Component: AdminInventory },
             { path: "staff", Component: AdminManageStaff },
             { path: "designs", Component: AdminDesignRequests },
+            { path: "chats", Component: AdminChats },
             { path: "profile", Component: ProfilePage },
         ],
     },
