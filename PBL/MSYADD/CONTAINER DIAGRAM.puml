@@ -1,0 +1,31 @@
+@startuml ContainerDiagram
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(customer, "Customer")
+Person(staff, "Staff")
+Person(admin, "Admin")
+
+System_Boundary(c1, "Fatmama Pastry Shop System") {
+    Container(customerApp, "Customer Web App", "React.js", "Allows customers to browse products, request custom cake designs, place orders, and send inquiries.")
+    Container(staffPortal, "Staff Portal", "React.js", "Allows staff to manage orders, product listings, inquiries, and inventory visibility.")
+    Container(adminPortal, "Admin Portal", "React.js", "Allows administrators to manage customers, staff, inventory, products, and sales.")
+    Container(apiApp, "Backend API Application", "Nest.js / Supabase", "Provides API endpoints for user authentication, order processing, AI prompt handling, and inventory management.")
+    ContainerDb(logicalDb, "Logical Data Store", "Relational ERD Schema", "Represents USERS, CUSTOMERS, ADDRESSES, PRODUCTS, PRODUCT_CATEGORIES, ORDERS, ORDER_ITEMS, INVENTORY_ITEMS, and INVENTORY_LOGS.")
+}
+
+System_Ext(aiDesign, "AI Design Service", "OpenAI API")
+System_Ext(paymentGateway, "Payment Gateway", "GCash / Maya")
+
+Rel(customer, customerApp, "Browses products and places orders", "HTTPS")
+Rel(staff, staffPortal, "Handles orders and inquiries", "HTTPS")
+Rel(admin, adminPortal, "Manages inventory and staff", "HTTPS")
+
+Rel(customerApp, apiApp, "Uses API", "HTTPS / REST")
+Rel(staffPortal, apiApp, "Uses API", "HTTPS / REST")
+Rel(adminPortal, apiApp, "Uses API", "HTTPS / REST")
+
+Rel(apiApp, logicalDb, "Reads and writes data", "SQL / TCP")
+Rel(apiApp, aiDesign, "Generates cake prompts securely", "HTTPS / REST")
+Rel(apiApp, paymentGateway, "Verifies payments and updates order status", "HTTPS / REST")
+
+@enduml
