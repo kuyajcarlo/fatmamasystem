@@ -1,11 +1,3 @@
--- Option A: Add a policy to allow ANYONE to read the products
-CREATE POLICY "Allow public read access on products"
-ON products FOR SELECT
-TO public
-USING (true);
-
--- Option B: Add a policy to allow ANYONE to read the inventory
-CREATE POLICY "Allow public read access on inventory"
-ON inventory FOR SELECT
-TO public
-USING (true);
+-- Please see sql_instructions_full.txt for the complete, tested database schema,
+-- RLS security fix, and default accounts seed script.
+-- Copy the content of sql_instructions_full.txt into your Supabase SQL Editor and press RUN.

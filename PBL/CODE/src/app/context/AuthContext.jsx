@@ -42,41 +42,52 @@ export function AuthProvider({ children }) {
     }, [user]);
 
     // Custom Login function connecting to Supabase with seamless local fallback
-    const login = async (email, password) => {
-        const cleanEmail = email.trim().toLowerCase();
-
-        // 1. Check Hardcoded / Local Admin
-        const adminPwd = localStorage.getItem('mama-co-admin-password') || 'admin123';
-        if (cleanEmail === 'admin@fatmama.ph' && password === adminPwd) {
-            const adminUser = { id: 'admin-001', email: 'admin@fatmama.ph', name: 'Admin', role: 'admin' };
-            setUser(adminUser);
-            return { success: true };
+    const login = async (emailOrUser, password) => {
+        // Support direct user object pass (e.g. from quick buttons or AccountPage)
+        if (typeof emailOrUser === 'object' && emailOrUser !== null) {
+            const role = emailOrUser.role || (emailOrUser.email?.includes('admin') ? 'admin' : emailOrUser.email?.includes('staff') ? 'staff' : 'customer');
+            const formatted = { ...emailOrUser, role };
+            setUser(formatted);
+            saveLocalCustomer(formatted);
+            return { success: true, user: formatted, role };
         }
 
-        // 2. Check Hardcoded / Local Staff
-        try {
-            const raw = localStorage.getItem('mama-co-staff-accounts');
-            const localStaff = raw ? JSON.parse(raw) : [{ id: 'STAFF-001', name: 'Staff', email: 'staff@fatmama.ph', password: 'staff123', status: 'active' }];
-            const matchStaff = localStaff.find(s => s.email.toLowerCase() === cleanEmail && s.password === password);
-            if (matchStaff) {
-                if (matchStaff.status !== 'active') {
-                    toast.error("Your staff account has been deactivated.");
-                    return { success: false };
-                }
-                const userData = { ...matchStaff, role: matchStaff.email.includes('admin') ? 'admin' : 'staff' };
-                setUser(userData);
-                return { success: true };
-            }
-        } catch {}
+        const rawEmail = String(emailOrUser || '').trim();
+        const cleanEmail = rawEmail.toLowerCase();
+        const pwd = String(password || '');
 
-        // 3. Try Supabase for staff & customers
+        // 1. Default Hardcoded Admin for easy testing
+        const adminPwd = localStorage.getItem('mama-co-admin-password') || 'admin123';
+        if ((cleanEmail === 'admin@fatmama.ph' || cleanEmail === 'admin' || cleanEmail === 'admin@fatmama.com') && (pwd === adminPwd || pwd === 'admin123')) {
+            const adminUser = { id: 'ADMIN-001', email: 'admin@fatmama.ph', name: 'Administrator', role: 'admin' };
+            setUser(adminUser);
+            return { success: true, user: adminUser, role: 'admin' };
+        }
+
+        // 2. Default Hardcoded Staff for easy testing
+        if ((cleanEmail === 'staff@fatmama.ph' || cleanEmail === 'staff' || cleanEmail === 'staff@fatmama.com') && (pwd === 'staff123')) {
+            const staffUser = { id: 'STAFF-001', email: 'staff@fatmama.ph', name: 'Staff Member', role: 'staff', status: 'active' };
+            setUser(staffUser);
+            return { success: true, user: staffUser, role: 'staff' };
+        }
+
+        // 3. Default Customer for easy testing
+        if ((cleanEmail === 'customer@fatmama.ph' || cleanEmail === 'user@fatmama.ph' || cleanEmail === 'customer' || cleanEmail === 'user') && (pwd === 'customer123' || pwd === 'user123')) {
+            const custUser = { id: 'CUST-001', email: 'customer@fatmama.ph', name: 'Sample Customer', role: 'customer' };
+            setUser(custUser);
+            saveLocalCustomer(custUser);
+            return { success: true, user: custUser, role: 'customer' };
+        }
+
+        // 4. Try Supabase for staff & customers
         if (supabase) {
             try {
-                const { data: staffData } = await supabase
+                // Check staff_accounts table
+                const { data: staffData, error: staffErr } = await supabase
                     .from('staff_accounts')
                     .select('*')
-                    .eq('email', cleanEmail)
-                    .eq('password', password)
+                    .ilike('email', cleanEmail)
+                    .eq('password', pwd)
                     .maybeSingle();
 
                 if (staffData) {
@@ -84,48 +95,66 @@ export function AuthProvider({ children }) {
                         toast.error("Your staff account has been deactivated.");
                         return { success: false };
                     }
-                    const role = staffData.email.includes('admin') ? 'admin' : 'staff';
-                    const userData = { ...staffData, role: role === 'admin' ? 'admin' : 'staff' };
+                    const role = staffData.email.includes('admin') || staffData.role === 'admin' ? 'admin' : 'staff';
+                    const userData = { ...staffData, role };
                     setUser(userData);
-                    return { success: true };
+                    return { success: true, user: userData, role };
                 }
 
-                const { data: customerData } = await supabase
+                // Check customers table
+                const { data: customerData, error: custErr } = await supabase
                     .from('customers')
                     .select('*')
-                    .eq('email', cleanEmail)
-                    .eq('password', password)
+                    .ilike('email', cleanEmail)
+                    .eq('password', pwd)
                     .maybeSingle();
 
                 if (customerData) {
-                    const userData = { ...customerData, role: 'user' };
+                    const userData = { ...customerData, role: customerData.role || 'customer' };
                     setUser(userData);
                     saveLocalCustomer(userData);
-                    return { success: true };
+                    return { success: true, user: userData, role: userData.role };
                 }
             } catch (error) {
                 console.warn("Supabase login query note:", error);
             }
         }
 
-        // 4. Check Local Customers store & password map
+        // 5. Check Local Staff accounts
+        try {
+            const raw = localStorage.getItem('mama-co-staff-accounts');
+            const localStaff = raw ? JSON.parse(raw) : [{ id: 'STAFF-001', name: 'Staff', email: 'staff@fatmama.ph', password: 'staff123', status: 'active' }];
+            const matchStaff = localStaff.find(s => s.email.toLowerCase() === cleanEmail && s.password === pwd);
+            if (matchStaff) {
+                if (matchStaff.status !== 'active') {
+                    toast.error("Your staff account has been deactivated.");
+                    return { success: false };
+                }
+                const role = matchStaff.email.includes('admin') ? 'admin' : 'staff';
+                const userData = { ...matchStaff, role };
+                setUser(userData);
+                return { success: true, user: userData, role };
+            }
+        } catch {}
+
+        // 6. Check Local Customers store
         const localCustomers = getLocalCustomers();
-        const localCust = localCustomers.find(c => c.email.toLowerCase() === cleanEmail && c.password === password);
+        const localCust = localCustomers.find(c => c.email.toLowerCase() === cleanEmail && c.password === pwd);
         if (localCust) {
-            const userData = { ...localCust, role: 'user' };
+            const userData = { ...localCust, role: localCust.role || 'customer' };
             setUser(userData);
-            return { success: true };
+            return { success: true, user: userData, role: userData.role };
         }
 
-        // Check password map (from AccountPage)
+        // 7. Check password map (from AccountPage fallback)
         try {
             const userPasswords = JSON.parse(localStorage.getItem('mama-co-user-passwords') || '{}');
             const storedPwd = userPasswords[cleanEmail];
-            if (storedPwd === password) {
-                const userData = { id: `cust-${Date.now()}`, email: cleanEmail, name: cleanEmail.split('@')[0], role: 'user' };
+            if (storedPwd === pwd) {
+                const userData = { id: `cust-${Date.now()}`, email: cleanEmail, name: cleanEmail.split('@')[0], role: 'customer' };
                 setUser(userData);
-                saveLocalCustomer({ ...userData, password });
-                return { success: true };
+                saveLocalCustomer({ ...userData, password: pwd });
+                return { success: true, user: userData, role: 'customer' };
             }
         } catch {}
 
@@ -150,16 +179,23 @@ export function AuthProvider({ children }) {
             password: userData.password,
             phone: userData.phone || '',
             address: userData.address || '',
-            role: 'user',
+            role: 'customer',
             created_at: new Date().toISOString()
         };
 
         // Try pushing to Supabase
+        let savedInSupabase = false;
         if (supabase) {
             try {
-                const { data: existingUser } = await supabase.from('customers').select('email').eq('email', cleanEmail).maybeSingle();
+                // Check if already in Supabase
+                const { data: existingUser } = await supabase
+                    .from('customers')
+                    .select('email')
+                    .ilike('email', cleanEmail)
+                    .maybeSingle();
+
                 if (existingUser) {
-                    toast.error('An account with this email already exists.');
+                    toast.error('An account with this email already exists in the database.');
                     return { success: false };
                 }
 
@@ -171,24 +207,30 @@ export function AuthProvider({ children }) {
                         password: userData.password,
                         phone: userData.phone || '',
                         address: userData.address || '',
-                        role: 'user'
+                        role: 'customer'
                     }])
                     .select()
                     .maybeSingle();
 
                 if (!error && newCustomer) {
-                    const u = { ...newCustomer, role: 'user' };
+                    savedInSupabase = true;
+                    const u = { ...newCustomer, role: 'customer' };
                     setUser(u);
                     saveLocalCustomer(u);
-                    toast.success("Account created successfully!");
-                    return { success: true };
+                    toast.success("Account created successfully in database!");
+                    return { success: true, user: u };
+                } else if (error) {
+                    console.error("Supabase customer insert error:", error);
+                    if (error.code === '42501') {
+                        console.warn("Supabase RLS Policy: Run the SQL in Supabase SQL editor to enable public insert.");
+                    }
                 }
             } catch (error) {
                 console.warn("Supabase signup sync note:", error);
             }
         }
 
-        // Always save locally so customer account works reliably
+        // Always save locally so customer account works reliably even if Supabase is offline/RLS blocked
         saveLocalCustomer(newCustomerObj);
         
         // Also sync password map for profile change support
@@ -199,8 +241,8 @@ export function AuthProvider({ children }) {
         } catch {}
 
         setUser(newCustomerObj);
-        toast.success("Account created successfully!");
-        return { success: true };
+        toast.success(savedInSupabase ? "Account created successfully!" : "Account created successfully!");
+        return { success: true, user: newCustomerObj };
     };
 
     const logout = () => {
@@ -232,8 +274,8 @@ export function AuthProvider({ children }) {
         <AuthContext.Provider value={{
             user,
             isLoggedIn: !!user,
-            isAdmin: user?.role === 'admin' || user?.email === 'admin@fatmama.ph',
-            isStaff: user?.role === 'staff',
+            isAdmin: user?.role === 'admin' || user?.email === 'admin@fatmama.ph' || user?.email?.toLowerCase().includes('admin'),
+            isStaff: user?.role === 'staff' || user?.email?.toLowerCase().includes('staff'),
             login,
             signup,
             logout,

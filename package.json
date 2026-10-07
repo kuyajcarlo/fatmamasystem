@@ -1,0 +1,11 @@
+{
+  "name": "fatmamasystem",
+  "private": true,
+  "workspaces": [
+    "PBL/CODE"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=PBL/CODE",
+    "build": "npm run build --workspace=PBL/CODE"
+  }
+}

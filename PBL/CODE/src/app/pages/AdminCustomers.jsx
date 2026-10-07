@@ -3,6 +3,7 @@ import { Search, Mail, Phone, MapPin, ShoppingBag, MessageSquare, ChevronDown } 
 import { useSearchParams } from 'react-router';
 import { useOrders } from '../context/OrderContext';
 import { useInquiries } from '../context/InquiryContext';
+import { supabase } from '../../lib/supabase';
 const STATUS_STYLES = {
     new: 'bg-amber-100 text-amber-700',
     read: 'bg-blue-100 text-blue-700',
@@ -14,8 +15,38 @@ export default function AdminCustomers() {
     const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'inquiries' ? 'inquiries' : 'customers');
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedInquiry, setExpandedInquiry] = useState(null);
+    const [registeredCustomers, setRegisteredCustomers] = useState([]);
     const { orders } = useOrders();
     const { inquiries, updateInquiryStatus } = useInquiries();
+
+    useEffect(() => {
+        const fetchDbCustomers = async () => {
+            let list = [];
+            try {
+                const local = JSON.parse(localStorage.getItem('mama-co-customers-db') || '[]');
+                list = [...local];
+            } catch {}
+
+            if (supabase) {
+                try {
+                    const { data } = await supabase.from('customers').select('*');
+                    if (data && data.length > 0) {
+                        const emailSet = new Set(list.map(c => c.email.toLowerCase()));
+                        data.forEach(d => {
+                            if (!emailSet.has(d.email?.toLowerCase())) {
+                                list.push(d);
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn('Error fetching customers from Supabase:', e);
+                }
+            }
+            setRegisteredCustomers(list);
+        };
+        fetchDbCustomers();
+    }, []);
+
     // Sync tab state when URL param changes (e.g. sidebar link click)
     useEffect(() => {
         const tabParam = searchParams.get('tab');
@@ -24,29 +55,54 @@ export default function AdminCustomers() {
         else if (tabParam === 'customers')
             setActiveTab('customers');
     }, [searchParams]);
-    // Generate customer data from orders
+
+    // Generate merged customer data from registered accounts + orders
     const customers = useMemo(() => {
         const customerMap = new Map();
+
+        // 1. First add registered accounts
+        registeredCustomers.forEach((reg, i) => {
+            const emailKey = (reg.email || '').toLowerCase();
+            if (!emailKey) return;
+            customerMap.set(emailKey, {
+                id: reg.id ? String(reg.id).slice(0, 10) : `CUST-${String(i + 1).padStart(3, '0')}`,
+                name: reg.name || 'Customer',
+                email: reg.email,
+                phone: reg.phone || 'N/A',
+                location: reg.address || 'N/A',
+                totalOrders: 0,
+                totalSpent: 0,
+                joinDate: reg.created_at ? reg.created_at.split('T')[0] : '2026-05-10',
+                status: 'active',
+            });
+        });
+
+        // 2. Aggregate orders
         orders.forEach((order) => {
-            if (!customerMap.has(order.email)) {
-                customerMap.set(order.email, {
+            const emailKey = (order.email || order.user_email || '').toLowerCase();
+            if (!emailKey) return;
+            if (!customerMap.has(emailKey)) {
+                customerMap.set(emailKey, {
                     id: `CUST-${customerMap.size + 1}`.padStart(8, '0'),
-                    name: order.customer,
-                    email: order.email,
-                    phone: order.phone,
-                    location: order.city,
+                    name: order.customer || order.user_name || 'Customer',
+                    email: order.email || order.user_email,
+                    phone: order.phone || 'N/A',
+                    location: order.city || order.delivery_address || 'N/A',
                     totalOrders: 0,
                     totalSpent: 0,
-                    joinDate: order.date.split(' ')[0],
+                    joinDate: order.date ? String(order.date).split(' ')[0] : '2026-05-10',
                     status: 'active',
                 });
             }
-            const customer = customerMap.get(order.email);
+            const customer = customerMap.get(emailKey);
             customer.totalOrders += 1;
-            customer.totalSpent += order.finalTotal;
+            customer.totalSpent += (Number(order.finalTotal) || Number(order.total) || 0);
+            if (order.phone && customer.phone === 'N/A') customer.phone = order.phone;
+            if (order.city && customer.location === 'N/A') customer.location = order.city;
         });
+
         return Array.from(customerMap.values());
-    }, [orders]);
+    }, [orders, registeredCustomers]);
     const filteredCustomers = customers.filter(customer => customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         customer.id.toLowerCase().includes(searchQuery.toLowerCase()) ||

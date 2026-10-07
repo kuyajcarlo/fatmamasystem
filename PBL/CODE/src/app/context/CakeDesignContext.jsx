@@ -104,7 +104,7 @@ export function CakeDesignProvider({ children }) {
                     message: newReq.text || newReq.message || '',
                     reference_image: newReq.imageUrl || '',
                     special_instructions: newReq.decorations || newReq.specialInstructions || '',
-                    date: now,
+                    date: new Date().toISOString(),
                     status: 'pending',
                     price: newReq.basePrice
                 };

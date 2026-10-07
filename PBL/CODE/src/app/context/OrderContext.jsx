@@ -108,7 +108,7 @@ export function OrderProvider({ children }) {
                     id,
                     user_email: customerEmail,
                     user_name: customerName,
-                    date: now,
+                    date: new Date().toISOString(),
                     status: 'pending',
                     total: fullOrder.finalTotal,
                     delivery_address: fullOrder.delivery_address,

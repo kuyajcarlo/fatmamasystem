@@ -49,40 +49,17 @@ export default function AccountPage() {
             return;
         }
         setLoginErrors({});
-        const adminPwd = localStorage.getItem('mama-co-admin-password') || 'admin123';
-        if (loginEmail === 'admin@fatmama.ph' && loginPassword === adminPwd) {
-            login({ email: loginEmail, name: 'Admin', role: 'admin' });
-            toast.success('Welcome back, Admin!');
-            navigate('/admin');
-            return;
-        }
-        try {
-            const DEFAULT_STAFF = [{ id: 'STAFF-001', name: 'Staff', email: 'staff@fatmama.ph', password: 'staff123', status: 'active', createdAt: '2026-01-01' }];
-            const raw = localStorage.getItem('mama-co-staff-accounts');
-            const staffAccounts = raw ? JSON.parse(raw) : DEFAULT_STAFF;
-            const staffMatch = staffAccounts.find((s) => s.email.toLowerCase() === loginEmail.toLowerCase() && s.password === loginPassword && s.status === 'active');
-            if (staffMatch) {
-                login({ email: staffMatch.email, name: staffMatch.name, role: 'staff' });
-                toast.success(`Welcome, ${staffMatch.name}!`);
-                navigate('/staff');
-                return;
-            }
-        }
-        catch {
-            // ignore parse errors
-        }
-        if (loginEmail === 'user@fatmama.ph' && loginPassword === 'user123') {
-            login({ email: loginEmail, name: 'Test User', role: 'user' });
-            toast.success('Welcome back, Test User!');
-            navigate(redirectTo);
-            showPrivacyModal();
-            return;
-        }
         const res = await login(loginEmail, loginPassword);
         if (res?.success) {
-            toast.success('Welcome back!');
-            navigate(redirectTo);
-            showPrivacyModal();
+            toast.success(`Welcome back${res.user?.name ? ', ' + res.user.name : ''}!`);
+            if (res.role === 'admin') {
+                navigate('/admin');
+            } else if (res.role === 'staff') {
+                navigate('/staff');
+            } else {
+                navigate(redirectTo);
+                showPrivacyModal();
+            }
         }
     };
     const handleSignup = async (e) => {
@@ -192,6 +169,51 @@ export default function AccountPage() {
                   Sign in to your account
                 </h2>
                 <p className="text-gray-500 text-sm mt-1">Enter your credentials below to continue</p>
+              </div>
+
+              {/* Quick Test Accounts Banner */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 mb-5 text-xs">
+                <p className="font-semibold text-amber-900 mb-2">
+                  ⚡ Default Test Accounts (1-Click Fill & Login):
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setLoginEmail('admin@fatmama.ph');
+                      setLoginPassword('admin123');
+                      const r = await login('admin@fatmama.ph', 'admin123');
+                      if (r?.success) navigate('/admin');
+                    }}
+                    className="px-2 py-1.5 bg-emerald-700 text-white rounded font-medium hover:bg-emerald-800 transition text-center"
+                  >
+                    👑 Admin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setLoginEmail('staff@fatmama.ph');
+                      setLoginPassword('staff123');
+                      const r = await login('staff@fatmama.ph', 'staff123');
+                      if (r?.success) navigate('/staff');
+                    }}
+                    className="px-2 py-1.5 bg-[#2C5F4F] text-white rounded font-medium hover:bg-[#1f4437] transition text-center"
+                  >
+                    💼 Staff
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setLoginEmail('customer@fatmama.ph');
+                      setLoginPassword('customer123');
+                      const r = await login('customer@fatmama.ph', 'customer123');
+                      if (r?.success) navigate(redirectTo);
+                    }}
+                    className="px-2 py-1.5 bg-[#D4A843] text-white rounded font-medium hover:bg-[#b8923a] transition text-center"
+                  >
+                    👤 Customer
+                  </button>
+                </div>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-4">

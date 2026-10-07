@@ -1,5 +1,36 @@
--- 1. Orders Table
-CREATE TABLE orders (
+-- ==============================================================================
+-- FAT MAMA BAKESHOP & CAFE - COMPLETE SUPABASE DATABASE SETUP & FIX SCRIPT
+-- Copy and paste this ENTIRE script into your Supabase project's SQL Editor and click RUN.
+-- ==============================================================================
+
+-- 1. Enable UUID Extension
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- 2. Customers Table
+CREATE TABLE IF NOT EXISTS customers (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name text NOT NULL,
+  email text UNIQUE NOT NULL,
+  password text NOT NULL,
+  phone text,
+  address text,
+  role text DEFAULT 'customer',
+  created_at timestamp with time zone DEFAULT now()
+);
+
+-- 3. Staff Accounts Table
+CREATE TABLE IF NOT EXISTS staff_accounts (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  email text UNIQUE NOT NULL,
+  password text NOT NULL,
+  role text DEFAULT 'staff',
+  status text NOT NULL DEFAULT 'active',
+  created_at timestamp with time zone DEFAULT now()
+);
+
+-- 4. Orders Table
+CREATE TABLE IF NOT EXISTS orders (
   id text PRIMARY KEY,
   user_email text NOT NULL,
   user_name text NOT NULL,
@@ -7,11 +38,11 @@ CREATE TABLE orders (
   status text NOT NULL DEFAULT 'pending',
   total numeric(10,2) NOT NULL,
   delivery_address text,
-  items jsonb NOT NULL -- Storing cart items as JSON for simplicity
+  items jsonb NOT NULL
 );
 
--- 2. Inquiries Table (Contact form)
-CREATE TABLE inquiries (
+-- 5. Inquiries Table
+CREATE TABLE IF NOT EXISTS inquiries (
   id text PRIMARY KEY,
   name text NOT NULL,
   email text NOT NULL,
@@ -21,8 +52,8 @@ CREATE TABLE inquiries (
   status text NOT NULL DEFAULT 'new'
 );
 
--- 3. Cake Design Requests Table
-CREATE TABLE cake_requests (
+-- 6. Cake Design Requests Table
+CREATE TABLE IF NOT EXISTS cake_requests (
   id text PRIMARY KEY,
   user_email text NOT NULL,
   user_name text NOT NULL,
@@ -38,35 +69,85 @@ CREATE TABLE cake_requests (
   admin_notes text
 );
 
--- 4. Staff Accounts Table
-CREATE TABLE staff_accounts (
+-- 7. Products Table
+CREATE TABLE IF NOT EXISTS products (
   id text PRIMARY KEY,
+  code text,
   name text NOT NULL,
-  email text UNIQUE NOT NULL,
-  password text NOT NULL,
+  category text NOT NULL,
+  price numeric(10,2) NOT NULL,
   status text NOT NULL DEFAULT 'active',
-  created_at timestamp with time zone DEFAULT now()
+  popular boolean DEFAULT false,
+  description text,
+  "from" boolean DEFAULT false
 );
 
--- Allow public access for now so the frontend can read/write without Auth tokens
-CREATE POLICY "Allow public all on orders" ON orders FOR ALL TO public USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public all on inquiries" ON inquiries FOR ALL TO public USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public all on cake_requests" ON cake_requests FOR ALL TO public USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public all on staff_accounts" ON staff_accounts FOR ALL TO public USING (true) WITH CHECK (true);
+-- 8. Inventory Table
+CREATE TABLE IF NOT EXISTS inventory (
+  id text PRIMARY KEY,
+  code text,
+  name text NOT NULL,
+  category text NOT NULL,
+  current_stock integer NOT NULL DEFAULT 0,
+  min_stock integer NOT NULL DEFAULT 10,
+  max_stock integer NOT NULL DEFAULT 100,
+  unit text NOT NULL DEFAULT 'pcs',
+  supplier text,
+  status text NOT NULL DEFAULT 'in-stock',
+  last_restocked text
+);
 
+-- ==============================================================================
+-- ROW LEVEL SECURITY (RLS) FIX
+-- This fixes the error: "new row violates row-level security policy for table"
+-- ==============================================================================
+
+-- Option A: Disable RLS on all tables so frontend operations are never blocked
+ALTER TABLE customers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE staff_accounts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE orders DISABLE ROW LEVEL SECURITY;
 ALTER TABLE inquiries DISABLE ROW LEVEL SECURITY;
 ALTER TABLE cake_requests DISABLE ROW LEVEL SECURITY;
-ALTER TABLE staff_accounts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE products DISABLE ROW LEVEL SECURITY;
+ALTER TABLE inventory DISABLE ROW LEVEL SECURITY;
 
--- 5. Customers Table (Since we are managing accounts manually via AuthContext)
-CREATE TABLE customers (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  name text NOT NULL,
-  email text UNIQUE NOT NULL,
-  password text NOT NULL, -- Storing passwords directly for this prototype (Warning: Not for production without hashing)
-  phone text,
-  address text,
-  role text DEFAULT 'customer',
-  created_at timestamp with time zone DEFAULT now()
-);
+-- Option B: Permissive Policies in case RLS is re-enabled in Supabase dashboard
+DROP POLICY IF EXISTS "Allow public all on customers" ON customers;
+CREATE POLICY "Allow public all on customers" ON customers FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public all on staff_accounts" ON staff_accounts;
+CREATE POLICY "Allow public all on staff_accounts" ON staff_accounts FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public all on orders" ON orders;
+CREATE POLICY "Allow public all on orders" ON orders FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public all on inquiries" ON inquiries;
+CREATE POLICY "Allow public all on inquiries" ON inquiries FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public all on cake_requests" ON cake_requests;
+CREATE POLICY "Allow public all on cake_requests" ON cake_requests FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public all on products" ON products;
+CREATE POLICY "Allow public all on products" ON products FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public all on inventory" ON inventory;
+CREATE POLICY "Allow public all on inventory" ON inventory FOR ALL TO public USING (true) WITH CHECK (true);
+
+-- ==============================================================================
+-- DEFAULT TEST ACCOUNTS (Pre-seeded for testing)
+-- ==============================================================================
+
+-- Default Administrator
+INSERT INTO staff_accounts (id, name, email, password, role, status, created_at)
+VALUES ('ADMIN-001', 'Administrator', 'admin@fatmama.ph', 'admin123', 'admin', 'active', now())
+ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, role = 'admin', status = 'active';
+
+-- Default Staff Member
+INSERT INTO staff_accounts (id, name, email, password, role, status, created_at)
+VALUES ('STAFF-001', 'Staff Member', 'staff@fatmama.ph', 'staff123', 'staff', 'active', now())
+ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, role = 'staff', status = 'active';
+
+-- Default Customer Account
+INSERT INTO customers (name, email, password, phone, address, role, created_at)
+VALUES ('Sample Customer', 'customer@fatmama.ph', 'customer123', '09123456789', '123 Main St, Manila', 'customer', now())
+ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, role = 'customer';

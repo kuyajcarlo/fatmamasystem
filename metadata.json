@@ -1,0 +1,8 @@
+{
+  "name": "Fat Mama Bakeshop & Cafe",
+  "description": "Online ordering, custom cake design, inventory management, and ordering system for Fat Mama Bakeshop & Cafe.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
