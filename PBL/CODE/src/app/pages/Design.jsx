@@ -46,6 +46,14 @@ function calcPrice(sizeId, layers) {
     const extraLayers = Math.max(0, parseInt(layers) - 1);
     return size.price + extraLayers * size.layerPrice;
 }
+const TEXT_SUGGESTIONS = {
+    Birthday: ['Happy Birthday!', 'Happy Birthday, Mama!', 'Cheers to [age]!'],
+    Wedding: ['Mr. & Mrs.', 'Forever Starts Today', 'Congratulations!'],
+    Anniversary: ['Happy Anniversary', 'Love You Always', 'Cheers to Us'],
+    'Baby Shower': ["It's a Boy!", "It's a Girl!", 'Welcome, Baby!'],
+    Graduation: ['Congrats, Grad!', 'We Are Proud of You', 'Class of 2026'],
+    Other: ['Congratulations!', 'Thank You', 'With Love'],
+};
 export default function Design() {
     const navigate = useNavigate();
     const { isLoggedIn, user } = useAuth();
@@ -166,15 +174,11 @@ export default function Design() {
 
               <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden mb-4">
                 <img src={cakeImage} alt="Cake Design" className="w-full h-full object-cover"/>
-                {customization.text && (<div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                    <div className="text-3xl font-bold px-6 py-3 rounded-lg shadow-lg" style={{
-                    color: customization.color === '#FFFFFF' ? '#333' : customization.color,
-                    backgroundColor: 'rgba(255,255,255,0.9)',
-                }}>
-                      {customization.text}
-                    </div>
-                  </div>)}
               </div>
+
+              {customization.text.trim() && (<p className="mb-4 text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+                  <span className="font-medium text-gray-800">Written on cake:</span> “{customization.text.trim()}”
+                </p>)}
 
               <div className="flex gap-2 mb-5">
                 <label className="flex-1 cursor-pointer">
@@ -215,7 +219,11 @@ export default function Design() {
               {/* Cake Text */}
               <div>
                 <label className="block mb-2 font-medium text-sm">Cake Text</label>
-                <input type="text" value={customization.text} onChange={(e) => setCustomization({ ...customization, text: e.target.value })} placeholder="Happy Birthday!" className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#D4A843] focus:border-transparent outline-none"/>
+                <input type="text" value={customization.text} onChange={(e) => setCustomization({ ...customization, text: e.target.value })} maxLength={40} placeholder="Happy Birthday!" className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#D4A843] focus:border-transparent outline-none"/>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {(TEXT_SUGGESTIONS[customization.occasion] || TEXT_SUGGESTIONS.Other).map((t) => (<button type="button" key={t} onClick={() => setCustomization({ ...customization, text: t })} className="text-xs px-3 py-1 rounded-full border border-[#D4A843]/50 text-[#8a6a1c] bg-amber-50 hover:bg-amber-100 transition-colors">{t}</button>))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Short and clear works best (max 40 characters). The bakery pipes it on the cake.</p>
               </div>
 
               {/* Cake Size */}
