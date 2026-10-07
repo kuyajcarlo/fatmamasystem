@@ -1,0 +1,72 @@
+-- 1. Orders Table
+CREATE TABLE orders (
+  id text PRIMARY KEY,
+  user_email text NOT NULL,
+  user_name text NOT NULL,
+  date timestamp with time zone DEFAULT now(),
+  status text NOT NULL DEFAULT 'pending',
+  total numeric(10,2) NOT NULL,
+  delivery_address text,
+  items jsonb NOT NULL -- Storing cart items as JSON for simplicity
+);
+
+-- 2. Inquiries Table (Contact form)
+CREATE TABLE inquiries (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  email text NOT NULL,
+  subject text NOT NULL,
+  message text NOT NULL,
+  date timestamp with time zone DEFAULT now(),
+  status text NOT NULL DEFAULT 'new'
+);
+
+-- 3. Cake Design Requests Table
+CREATE TABLE cake_requests (
+  id text PRIMARY KEY,
+  user_email text NOT NULL,
+  user_name text NOT NULL,
+  date timestamp with time zone DEFAULT now(),
+  status text NOT NULL DEFAULT 'pending',
+  occasion text NOT NULL,
+  flavor text NOT NULL,
+  size text NOT NULL,
+  message text,
+  reference_image text,
+  special_instructions text,
+  price numeric(10,2),
+  admin_notes text
+);
+
+-- 4. Staff Accounts Table
+CREATE TABLE staff_accounts (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  email text UNIQUE NOT NULL,
+  password text NOT NULL,
+  status text NOT NULL DEFAULT 'active',
+  created_at timestamp with time zone DEFAULT now()
+);
+
+-- Allow public access for now so the frontend can read/write without Auth tokens
+CREATE POLICY "Allow public all on orders" ON orders FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all on inquiries" ON inquiries FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all on cake_requests" ON cake_requests FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all on staff_accounts" ON staff_accounts FOR ALL TO public USING (true) WITH CHECK (true);
+
+ALTER TABLE orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE inquiries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE cake_requests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE staff_accounts DISABLE ROW LEVEL SECURITY;
+
+-- 5. Customers Table (Since we are managing accounts manually via AuthContext)
+CREATE TABLE customers (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name text NOT NULL,
+  email text UNIQUE NOT NULL,
+  password text NOT NULL, -- Storing passwords directly for this prototype (Warning: Not for production without hashing)
+  phone text,
+  address text,
+  role text DEFAULT 'customer',
+  created_at timestamp with time zone DEFAULT now()
+);
