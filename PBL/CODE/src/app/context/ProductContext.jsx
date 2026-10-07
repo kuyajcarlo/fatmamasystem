@@ -17,17 +17,19 @@ export function ProductProvider({ children }) {
         try {
             setLoading(true);
             if (!supabase) {
-                // Fallback to initial local data if Supabase isn't configured yet
                 setProducts(INITIAL_PRODUCTS);
-                setLoading(false);
                 return;
             }
             const { data, error } = await supabase.from('products').select('*');
             if (error) throw error;
-            if (data) setProducts(data);
+            if (data && data.length > 0) {
+                setProducts(data);
+            } else {
+                setProducts(INITIAL_PRODUCTS);
+            }
         } catch (error) {
-            console.error('Error fetching products:', error);
-            toast.error('Failed to load products from database');
+            console.warn('Note: Loaded fallback products:', error);
+            setProducts(INITIAL_PRODUCTS);
         } finally {
             setLoading(false);
         }
