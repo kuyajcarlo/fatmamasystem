@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useOrders } from '../context/OrderContext';
 import { useInquiries } from '../context/InquiryContext';
@@ -90,7 +90,11 @@ export default function ProfilePage() {
     const { user, updateUser } = useAuth();
     const { orders } = useOrders();
     const { inquiries } = useInquiries();
-    const { savedDeliveryInfo, saveDeliveryInfo } = useDelivery();
+    const { savedDeliveryInfo, saveDeliveryInfo, addresses, defaultAddress, saveAddress, deleteAddress, setDefaultAddress } = useDelivery();
+    const [editingId, setEditingId] = useState(null);
+    const [addrLabel, setAddrLabel] = useState('Home');
+    const [makeDefault, setMakeDefault] = useState(false);
+    const [savingAddr, setSavingAddr] = useState(false);
     const { requests: allDesignRequests, markOrdered } = useCakeDesign();
     const { addItem } = useCart();
     const myDesignRequests = allDesignRequests.filter((r) => (r.customerEmail || r.userEmail || '').toLowerCase() === (user?.email || '').toLowerCase());
@@ -140,7 +144,8 @@ export default function ProfilePage() {
     });
     const [deliveryErrors, setDeliveryErrors] = useState({});
     const setDField = (key) => (v) => setDelivery((d) => ({ ...d, [key]: v }));
-    const handleSaveDelivery = () => {
+    const handleSaveDelivery = async () => {
+        if (savingAddr) return;
         const errs = {};
         if (!delivery.firstName.trim())
             errs.firstName = 'Required';
@@ -159,9 +164,35 @@ export default function ProfilePage() {
             return;
         }
         setDeliveryErrors({});
-        saveDeliveryInfo({ ...delivery, phone: phone.trim() || savedDeliveryInfo?.phone || '' });
-        toast.success('Delivery address saved — it will auto-fill at checkout');
+        setSavingAddr(true);
+        try {
+            saveDeliveryInfo({ ...delivery, phone: phone.trim() || savedDeliveryInfo?.phone || '' });
+            const saved = await saveAddress({ id: editingId, label: addrLabel, isDefault: makeDefault, address: delivery.address, city: delivery.city, province: delivery.province, zipCode: delivery.zipCode, lat: delivery.lat, lng: delivery.lng });
+            if (saved) {
+                toast.success(`${addrLabel} address saved — pick it at checkout`);
+                startNewAddress();
+            }
+        } finally {
+            setSavingAddr(false);
+        }
     };
+    const startNewAddress = () => {
+        setEditingId(null); setAddrLabel('Other'); setMakeDefault(false);
+        setDelivery((d) => ({ ...d, address: '', city: '', province: '', zipCode: '', lat: null, lng: null }));
+    };
+    const editAddress = (a) => {
+        setEditingId(a.id); setAddrLabel(a.label); setMakeDefault(a.isDefault);
+        setDelivery((d) => ({ ...d, address: a.address, city: a.city, province: a.province, zipCode: a.zipCode, lat: a.lat, lng: a.lng }));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    // address book arrives from the database after the page opens -> show the default one in the form
+    useEffect(() => {
+        if (defaultAddress && !delivery.address && !editingId) {
+            setEditingId(defaultAddress.id); setAddrLabel(defaultAddress.label); setMakeDefault(defaultAddress.isDefault);
+            setDelivery((d) => ({ ...d, address: defaultAddress.address, city: defaultAddress.city, province: defaultAddress.province, zipCode: defaultAddress.zipCode, lat: defaultAddress.lat, lng: defaultAddress.lng }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [defaultAddress]);
     // ── Password ──────────────────────────────────────────────────────────────
     const [currentPwd, setCurrentPwd] = useState('');
     const [newPwd, setNewPwd] = useState('');
@@ -219,7 +250,7 @@ export default function ProfilePage() {
         { label: 'Completed', value: myOrders.filter((o) => o.status === 'completed').length, icon: CheckCircle },
         { label: 'My Inquiries', value: myInquiries.length, icon: MessageSquare },
     ];
-    const addressFilled = !!(savedDeliveryInfo?.address && savedDeliveryInfo?.city);
+    const addressFilled = addresses.length > 0 || !!(savedDeliveryInfo?.address && savedDeliveryInfo?.city);
     const allTabs = [
         { id: 'info', label: 'Personal Info', icon: User },
         ...(role === 'user'
@@ -337,6 +368,30 @@ export default function ProfilePage() {
               Saved here — auto-fills at checkout so you don't have to type it every time.
             </p>
 
+            {addresses.length > 0 && (<div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700">Saved addresses ({addresses.length})</p>
+                {addresses.map((a) => (<div key={a.id} className={`flex items-start justify-between gap-3 rounded-lg border px-3 py-2.5 ${editingId === a.id ? 'border-[#D4A843] bg-amber-50' : 'border-gray-200'}`}>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800">{a.label}{a.isDefault && <span className="ml-2 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">Default</span>}</p>
+                      <p className="text-xs text-gray-500 truncate">{a.address}, {a.city}, {a.province} {a.zipCode}</p>
+                    </div>
+                    <div className="flex gap-3 text-xs shrink-0">
+                      {!a.isDefault && <button onClick={() => setDefaultAddress(a.id)} className="text-[#2C5F4F] hover:underline">Make default</button>}
+                      <button onClick={() => editAddress(a)} className="text-[#2C5F4F] hover:underline">Edit</button>
+                      <button onClick={() => { if (window.confirm('Delete this address?')) deleteAddress(a.id); }} className="text-red-600 hover:underline">Delete</button>
+                    </div>
+                  </div>))}
+                <button onClick={startNewAddress} className="text-sm text-[#2C5F4F] font-medium hover:underline">+ Add another address</button>
+              </div>)}
+
+            <div className="flex flex-wrap items-center gap-4 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
+              <span className="text-sm font-medium text-gray-700">{editingId ? 'Editing address' : 'New address'}</span>
+              <select value={addrLabel} onChange={(e) => setAddrLabel(e.target.value)} className="text-sm border border-gray-300 rounded-md px-2 py-1">
+                <option>Home</option><option>Work</option><option>Other</option>
+              </select>
+              <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)}/> Use as my default</label>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <Field label="First Name" value={delivery.firstName} onChange={setDField('firstName')} error={deliveryErrors.firstName} placeholder="Juan"/>
               <Field label="Last Name" value={delivery.lastName} onChange={setDField('lastName')} error={deliveryErrors.lastName} placeholder="Dela Cruz"/>
@@ -349,9 +404,9 @@ export default function ProfilePage() {
               <Field label="Zip Code" value={delivery.zipCode} onChange={setDField('zipCode')} error={deliveryErrors.zipCode} placeholder="4217"/>
             </div>
             <div className="flex justify-end pt-1">
-              <button onClick={handleSaveDelivery} className="flex items-center gap-2 px-6 py-2.5 bg-[#2C5F4F] hover:bg-[#1F4437] text-white rounded-lg font-medium transition-colors">
+              <button onClick={handleSaveDelivery} disabled={savingAddr} className="flex items-center gap-2 px-6 py-2.5 bg-[#2C5F4F] hover:bg-[#1F4437] text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 <MapPin className="w-4 h-4"/>
-                Save Delivery Address
+                {savingAddr ? 'Saving…' : editingId ? 'Update Address' : 'Save Delivery Address'}
               </button>
             </div>
           </div>)}

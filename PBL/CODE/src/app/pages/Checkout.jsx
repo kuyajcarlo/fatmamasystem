@@ -15,7 +15,8 @@ export default function Checkout() {
     const { addOrder } = useOrders();
     const { isLoggedIn, user } = useAuth();
     const { hasConsented } = usePrivacy();
-    const { savedDeliveryInfo, saveDeliveryInfo } = useDelivery();
+    const { savedDeliveryInfo, saveDeliveryInfo, addresses, defaultAddress, saveAddress: saveAddressBook } = useDelivery();
+    const [addressLabel, setAddressLabel] = useState('Home');
     const [paymentMethod, setPaymentMethod] = useState('cod');
     const [saveAddress, setSaveAddress] = useState(false);
     const [formData, setFormData] = useState({
@@ -31,6 +32,13 @@ export default function Checkout() {
         lng: savedDeliveryInfo?.lng || null,
         notes: '',
     });
+    // address book loads from the database after the page opens -> pre-fill the default one
+    useEffect(() => {
+        if (defaultAddress && !formData.address) {
+            setFormData((prev) => prev.address ? prev : ({ ...prev, address: defaultAddress.address, city: defaultAddress.city, province: defaultAddress.province, zipCode: defaultAddress.zipCode, lat: defaultAddress.lat, lng: defaultAddress.lng }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [defaultAddress]);
     const [errors, setErrors] = useState({});
     const deliveryFee = 50;
     const finalTotal = totalPrice + deliveryFee;
@@ -132,6 +140,17 @@ export default function Checkout() {
         };
         // Save delivery info if checkbox is checked
         if (saveAddress) {
+            const sameAddress = addresses.find((a) => a.address.trim().toLowerCase() === formData.address.trim().toLowerCase());
+            await saveAddressBook({
+                id: sameAddress?.id,
+                label: sameAddress?.label || addressLabel,
+                address: formData.address,
+                city: formData.city,
+                province: formData.province,
+                zipCode: formData.zipCode,
+                lat: formData.lat,
+                lng: formData.lng,
+            });
             saveDeliveryInfo({
                 firstName: formData.firstName,
                 lastName: formData.lastName,
@@ -289,11 +308,24 @@ export default function Checkout() {
                   <textarea name="notes" value={formData.notes} onChange={handleInputChange} rows={3} className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C5F4F]" placeholder="Any special instructions for delivery?"/>
                 </div>
 
+                {addresses.length > 0 && (<div>
+                  <p className="block text-sm mb-2 text-gray-700">Your saved addresses</p>
+                  <div className="flex flex-wrap gap-2">
+                    {addresses.map((a) => (<button type="button" key={a.id} onClick={() => setFormData((prev) => ({ ...prev, address: a.address, city: a.city, province: a.province, zipCode: a.zipCode, lat: a.lat, lng: a.lng }))} className={`text-left text-sm px-3 py-2 rounded-lg border transition-colors ${formData.address === a.address ? 'border-[#D4A843] bg-amber-50' : 'border-gray-300 hover:border-[#D4A843]'}`}>
+                        <span className="font-semibold text-gray-800">{a.label}{a.isDefault ? ' · Default' : ''}</span>
+                        <span className="block text-xs text-gray-500 max-w-[220px] truncate">{a.address}, {a.city}</span>
+                      </button>))}
+                  </div>
+                </div>)}
+
                 <div className="flex items-center">
                   <input id="save-address" name="save-address" type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} className="h-4 w-4 text-[#D4A843] focus:ring-[#D4A843] border-gray-300 rounded"/>
                   <label htmlFor="save-address" className="ml-2 block text-sm text-gray-700">
                     Save this delivery address for future orders
                   </label>
+                  {saveAddress && !addresses.some((a) => a.address.trim().toLowerCase() === formData.address.trim().toLowerCase()) && (<select value={addressLabel} onChange={(e) => setAddressLabel(e.target.value)} className="ml-3 text-sm border border-gray-300 rounded-md px-2 py-1">
+                      <option>Home</option><option>Work</option><option>Other</option>
+                    </select>)}
                 </div>
 
                 {savedDeliveryInfo && (<div className="bg-blue-50 border-l-4 border-blue-500 p-3 text-sm">

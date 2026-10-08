@@ -79,7 +79,8 @@ export default function StaffOrders() {
                       <p className="text-sm text-gray-700">{order.customer}</p>
                       <p className="text-sm text-gray-500">{order.email}</p>
                       <p className="text-sm text-gray-500">{order.phone}</p>
-                      <p className="text-sm text-gray-500 mt-1">{order.address}, {order.city}, {order.province} {order.zipCode}</p>
+                      <p className="text-sm text-gray-500 mt-1">{order.address}{order.city ? `, ${order.city}` : ''}{order.province ? `, ${order.province}` : ''} {order.zipCode}</p>
+                      {order.lat && order.lng && (<a href={`https://www.openstreetmap.org/?mlat=${order.lat}&mlon=${order.lng}#map=18/${order.lat}/${order.lng}`} target="_blank" rel="noreferrer" className="text-sm text-[#2C5F4F] underline">📍 View map pin</a>)}
                       {order.notes && <p className="text-sm text-gray-500 mt-1 italic">Note: {order.notes}</p>}
                     </div>
                     <div>

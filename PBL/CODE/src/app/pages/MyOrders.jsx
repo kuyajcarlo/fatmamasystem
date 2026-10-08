@@ -158,7 +158,7 @@ export default function MyOrders() {
                     <div className="mb-6">
                       <h4 className="font-semibold mb-3">Delivery Information</h4>
                       <div className="bg-white p-4 rounded-lg space-y-2 text-sm">
-                        <p><strong>Address:</strong> {order.address}</p>
+                        <p><strong>Address:</strong> {order.address}{order.lat && order.lng && (<> · <a href={`https://www.openstreetmap.org/?mlat=${order.lat}&mlon=${order.lng}#map=18/${order.lat}/${order.lng}`} target="_blank" rel="noreferrer" className="text-[#2C5F4F] underline">📍 map pin</a></>)}</p>
                         <p><strong>City:</strong> {order.city}, {order.province} {order.zipCode}</p>
                         <p><strong>Phone:</strong> {order.phone}</p>
                         {order.notes && (<p><strong>Notes:</strong> {order.notes}</p>)}

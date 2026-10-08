@@ -40,7 +40,10 @@ export function OrderProvider({ children }) {
                     email: o.user_email || o.email,
                     user_email: o.user_email || o.email,
                     phone: o.phone || '',
-                    address: o.delivery_address || o.address || '',
+                    // older orders had a map link glued to the address text; strip it
+                    address: String(o.delivery_address || o.address || '').replace(/\s*\|\s*Map pin:.*$/, ''),
+                    lat: o.delivery_lat ?? null,
+                    lng: o.delivery_lng ?? null,
                     city: o.city || '',
                     province: o.province || '',
                     zipCode: o.zipCode || '',
@@ -86,8 +89,7 @@ export function OrderProvider({ children }) {
             zipCode: orderData.zipCode || '',
             lat: orderData.lat || null,
             lng: orderData.lng || null,
-            delivery_address: `${orderData.address || ''}, ${orderData.city || ''}, ${orderData.province || ''} ${orderData.zipCode || ''}`.trim()
-                + (orderData.lat && orderData.lng ? ` | Map pin: https://www.openstreetmap.org/?mlat=${orderData.lat}&mlon=${orderData.lng}#map=18/${orderData.lat}/${orderData.lng}` : ''),
+            delivery_address: `${orderData.address || ''}, ${orderData.city || ''}, ${orderData.province || ''} ${orderData.zipCode || ''}`.trim(),
             notes: orderData.notes || '',
             items: orderData.items || [],
             total: orderData.total || 0,
@@ -115,9 +117,16 @@ export function OrderProvider({ children }) {
                     status: 'pending',
                     total: fullOrder.finalTotal,
                     delivery_address: fullOrder.delivery_address,
+                    delivery_lat: fullOrder.lat,
+                    delivery_lng: fullOrder.lng,
                     items: fullOrder.items
                 };
-                const { error } = await supabase.from('orders').insert([dbOrder]);
+                let { error } = await supabase.from('orders').insert([dbOrder]);
+                if (error && error.code === 'PGRST204') {
+                    // delivery_lat / delivery_lng columns not created yet (run address_book.sql) -> still save the order
+                    const { delivery_lat, delivery_lng, ...basic } = dbOrder;
+                    ({ error } = await supabase.from('orders').insert([basic]));
+                }
                 if (error) throw error;
             } catch (error) {
                 console.error('Order NOT saved to Supabase:', error);
