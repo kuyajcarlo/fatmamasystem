@@ -39,8 +39,12 @@ export default function Chatbot() {
     };
     const [isOpen, setIsOpen] = useState(false);
     useEffect(() => {
-        if (location.pathname === '/') {
-            const timer = setTimeout(() => setIsOpen(true), 800);
+        // greet visitors once per browser session; after that the assistant stays closed until they click it
+        if (location.pathname === '/' && !sessionStorage.getItem('fatmama-chat-greeted')) {
+            const timer = setTimeout(() => {
+                setIsOpen(true);
+                sessionStorage.setItem('fatmama-chat-greeted', '1');
+            }, 800);
             return () => clearTimeout(timer);
         }
     }, [location.pathname]);
@@ -164,7 +168,7 @@ export default function Chatbot() {
                 <p className="text-xs text-amber-100">Online • Ready to help!</p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="hover:bg-[#B8923A] p-1 rounded transition-colors">
+            <button onClick={() => { sessionStorage.setItem('fatmama-chat-greeted', '1'); setIsOpen(false); }} className="hover:bg-[#B8923A] p-1 rounded transition-colors">
               <X className="w-5 h-5"/>
             </button>
           </div>

@@ -13,6 +13,7 @@ export default function MyOrders() {
     const { requests: allDesigns, markOrdered } = useCakeDesign();
     const { addItem } = useCart();
     const [expandedOrder, setExpandedOrder] = useState(null);
+    const [tab, setTab] = useState('orders');
     useEffect(() => {
         if (!isLoggedIn) {
             navigate('/account?redirect=my-orders');
@@ -23,6 +24,8 @@ export default function MyOrders() {
     const userOrders = allOrders.filter(order => (order.email || '').toLowerCase() === myEmail);
     // Custom cake design requests of this customer (newest first)
     const myDesigns = allDesigns.filter(r => (r.customerEmail || r.userEmail || '').toLowerCase() === myEmail);
+    const readyDesigns = myDesigns.filter((r) => r.status === 'approved' && !r.ordered).length; // approved, waiting to be ordered
+    const pendingDesigns = myDesigns.filter((r) => r.status === 'pending').length;
     // 'ordered' = was approved and already added to an order
     const DESIGN_STATUS = {
         pending: { label: 'Pending approval', style: 'text-yellow-700 bg-yellow-100', Icon: Clock, message: 'Our team is reviewing your design. We will update this page once it is approved or denied.' },
@@ -95,7 +98,24 @@ export default function MyOrders() {
           <p className="text-gray-600">Track your orders and custom cake designs</p>
         </div>
 
-        {userOrders.length === 0 && myDesigns.length === 0 ? (<div className="bg-white rounded-lg shadow-sm p-12 text-center">
+        <div className="flex flex-wrap gap-3 mb-6">
+          <button onClick={() => setTab('orders')} className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold border transition-colors ${tab === 'orders' ? 'bg-[#D4A843] border-[#D4A843] text-white shadow-sm' : 'bg-white border-gray-300 text-gray-700 hover:border-[#D4A843]'}`}>
+            <Package className="w-4 h-4"/>
+            Orders
+            {userOrders.length > 0 && (<span className={`min-w-[20px] h-5 rounded-full text-[11px] font-bold flex items-center justify-center px-1.5 ${tab === 'orders' ? 'bg-white/30 text-white' : 'bg-gray-100 text-gray-600'}`}>{userOrders.length}</span>)}
+          </button>
+          <button onClick={() => setTab('designs')} className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold border transition-colors ${tab === 'designs' ? 'bg-[#D4A843] border-[#D4A843] text-white shadow-sm' : 'bg-white border-gray-300 text-gray-700 hover:border-[#D4A843]'}`}>
+            <Cake className="w-4 h-4"/>
+            Design Requests
+            {readyDesigns > 0
+                ? <span className="min-w-[20px] h-5 rounded-full bg-green-500 text-white text-[11px] font-bold flex items-center justify-center px-1.5">{readyDesigns}</span>
+                : pendingDesigns > 0
+                    ? <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block"/>
+                    : myDesigns.length > 0 ? <span className="min-w-[20px] h-5 rounded-full bg-gray-100 text-gray-600 text-[11px] font-bold flex items-center justify-center px-1.5">{myDesigns.length}</span> : null}
+          </button>
+        </div>
+
+        {tab === 'orders' && (userOrders.length === 0 ? (<div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4"/>
             <h2 className="text-2xl mb-2">No orders yet</h2>
             <p className="text-gray-600 mb-6">Start shopping to see your orders here</p>
@@ -195,13 +215,17 @@ export default function MyOrders() {
                     </div>
                   </div>)}
               </div>))}
-          </div>)}
+          </div>))}
 
         {/* Custom cake design requests */}
-        {myDesigns.length > 0 && (<div className={userOrders.length > 0 ? 'mt-10' : ''}>
-            <h2 className="text-2xl font-bold mb-1 flex items-center gap-2">
-              <Cake className="w-6 h-6 text-[#D4A843]"/> Custom Cake Designs
-            </h2>
+        {tab === 'designs' && (myDesigns.length === 0 ? (<div className="bg-white rounded-lg shadow-sm p-12 text-center">
+            <Cake className="w-16 h-16 text-gray-300 mx-auto mb-4"/>
+            <h2 className="text-2xl mb-2">No design requests yet</h2>
+            <p className="text-gray-600 mb-6">Design your own cake and send it for approval</p>
+            <button onClick={() => navigate('/design')} className="bg-[#D4A843] hover:bg-[#B8923A] text-white px-8 py-3 rounded-md transition-colors">
+              Design a Cake
+            </button>
+          </div>) : (<div>
             <p className="text-gray-600 mb-4">Track whether your design is approved, denied, or still waiting for approval</p>
             <div className="space-y-4">
               {myDesigns.map((req) => {
@@ -245,7 +269,7 @@ export default function MyOrders() {
                 </div>);
               })}
             </div>
-          </div>)}
+          </div>))}
       </div>
     </div>);
 }

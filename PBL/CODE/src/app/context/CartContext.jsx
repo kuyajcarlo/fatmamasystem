@@ -1,7 +1,21 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
+
+const CART_KEY = 'fatmama-cart';
+const loadCart = () => {
+    try {
+        const saved = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
+        return Array.isArray(saved) ? saved : [];
+    } catch {
+        return [];
+    }
+};
 const CartContext = createContext(undefined);
 export function CartProvider({ children }) {
-    const [items, setItems] = useState([]);
+    // the cart is kept in the browser, so a refresh or a closed tab does not empty it
+    const [items, setItems] = useState(loadCart);
+    useEffect(() => {
+        try { localStorage.setItem(CART_KEY, JSON.stringify(items)); } catch { /* storage full / blocked */ }
+    }, [items]);
     const addItem = (item) => {
         setItems((prevItems) => {
             const existingItem = prevItems.find((i) => i.id === item.id);

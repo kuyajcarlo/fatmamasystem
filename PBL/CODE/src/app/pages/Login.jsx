@@ -27,16 +27,6 @@ export default function Login() {
         }
     };
 
-    const handleQuickLogin = (quickEmail, quickPassword) => withLock(async () => {
-        setEmail(quickEmail);
-        setPassword(quickPassword);
-        const result = await login(quickEmail, quickPassword);
-        if (result.success) {
-            toast.success(`Logged in as ${result.role || 'user'}!`);
-            handleLoginWithRole(result.role);
-        }
-    });
-
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!email || !password) {
@@ -63,40 +53,6 @@ export default function Login() {
           </div>
           <h2 className="text-3xl font-bold mb-2">Welcome Back</h2>
           <p className="text-gray-600">Sign in to your account</p>
-        </div>
-
-        {/* Quick Testing Accounts Section */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs">
-          <p className="font-semibold text-amber-900 mb-2 flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-amber-700" />
-            Quick Test Accounts (Click to log in):
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin@fatmama.ph', 'admin123')}
-              className="px-2 py-1.5 bg-emerald-700 text-white rounded font-medium hover:bg-emerald-800 transition text-center"
-            >
-              👑 Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('staff@fatmama.ph', 'staff123')}
-              className="px-2 py-1.5 bg-[#2C5F4F] text-white rounded font-medium hover:bg-[#1f4437] transition text-center"
-            >
-              💼 Staff
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('customer@fatmama.ph', 'customer123')}
-              className="px-2 py-1.5 bg-[#D4A843] text-white rounded font-medium hover:bg-[#b8923a] transition text-center"
-            >
-              👤 Customer
-            </button>
-          </div>
-          <p className="mt-2 text-amber-800 text-[11px]">
-            Default Passwords: <code>admin123</code> / <code>staff123</code> / <code>customer123</code>
-          </p>
         </div>
 
         <form className="bg-white p-8 rounded-lg shadow-md space-y-5" onSubmit={handleSubmit}>

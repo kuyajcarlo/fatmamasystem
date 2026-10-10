@@ -259,12 +259,6 @@ export default function ProfilePage() {
                     badge: addressFilled
                         ? <span className="ml-1.5 w-2 h-2 rounded-full bg-green-400 inline-block"/>
                         : undefined },
-                { id: 'designs', label: 'Design Requests', icon: Cake,
-                    badge: approvedDesigns > 0
-                        ? <span className="ml-1.5 min-w-[18px] h-[18px] rounded-full bg-[#D4A843] text-white text-[10px] font-bold flex items-center justify-center px-1">{approvedDesigns}</span>
-                        : pendingDesigns > 0
-                            ? <span className="ml-1.5 w-2 h-2 rounded-full bg-yellow-400 inline-block"/>
-                            : undefined },
             ]
             : [{ id: 'contact', label: 'Contact', icon: Phone }]),
         { id: 'password', label: 'Change Password', icon: Lock },
@@ -440,91 +434,6 @@ export default function ProfilePage() {
               Contact
             </h2>
             <p className="text-sm text-gray-500">For account-related concerns, contact your system administrator.</p>
-          </div>)}
-
-        {/* Design Requests — customers only */}
-        {activeTab === 'designs' && role === 'user' && (<div>
-            <h2 className="font-semibold text-gray-800 flex items-center gap-2 mb-5">
-              <Cake className={`w-4 h-4 ${meta.color}`}/>
-              My Cake Design Requests
-            </h2>
-
-            {myDesignRequests.length === 0 ? (<div className="text-center py-10 text-gray-400">
-                <Cake className="w-10 h-10 mx-auto mb-3 opacity-40"/>
-                <p className="text-sm">No design requests yet.</p>
-                <button onClick={() => navigate('/design')} className="mt-4 px-5 py-2 bg-[#D4A843] hover:bg-[#B8923A] text-white rounded-lg text-sm font-medium transition-colors">
-                  Design a Custom Cake
-                </button>
-              </div>) : (<div className="space-y-4">
-                {myDesignRequests.map((req) => {
-                    const statusStyle = {
-                        pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-                        approved: 'bg-green-100 text-green-700 border-green-200',
-                        rejected: 'bg-red-100 text-red-700 border-red-200',
-                    }[req.status];
-                    const StatusIcon = req.status === 'approved' ? CheckCircle : req.status === 'rejected' ? XCircle : Clock;
-                    return (<div key={req.id} className={`border rounded-xl overflow-hidden ${req.status === 'approved' && !req.ordered ? 'border-green-300 shadow-sm shadow-green-100' : 'border-gray-100'}`}>
-                      <div className="flex gap-4 p-4">
-                        {req.imageUrl && (<img src={req.imageUrl} alt="Cake" className="w-20 h-20 rounded-lg object-cover shrink-0 border border-gray-100"/>)}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <span className="text-xs font-mono text-gray-400">{req.id}</span>
-                              <p className="text-sm font-semibold text-gray-800">
-                                {req.sizeName} · {req.layers}L · {req.flavor} · {req.frosting}
-                              </p>
-                              <p className="text-xs text-gray-400 mt-0.5">
-                                {req.occasion} · {req.submittedAt}
-                              </p>
-                            </div>
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${statusStyle}`}>
-                              <StatusIcon className="w-3 h-3"/>
-                              {req.status === 'rejected' ? 'Denied' : req.status === 'pending' ? 'Pending approval' : req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                            </span>
-                          </div>
-
-                          {/* Staff note */}
-                          {req.reviewNote && (<p className="mt-2 text-xs text-gray-600 bg-gray-50 rounded px-2.5 py-1.5 border border-gray-100">
-                              Note from team: {req.reviewNote}
-                            </p>)}
-
-                          {/* Approved state — show price + Order Now */}
-                          {req.status === 'approved' && !req.ordered && req.approvedPrice !== undefined && (<div className="mt-3 flex items-center justify-between">
-                              <span className="text-sm font-bold text-[#D4A843]">Approved Price: ₱{Number(req.approvedPrice ?? 0).toLocaleString()}</span>
-                              <button onClick={() => {
-                                const topperDisplay = req.topper === 'other'
-                                    ? req.otherTopper || 'Custom Topper'
-                                    : req.topper !== 'none' ? req.topper : '';
-                                const itemName = `Custom Cake — ${req.sizeName} · ${req.flavor} · ${req.frosting}${topperDisplay ? ' · ' + topperDisplay : ''}${req.occasion ? ' (' + req.occasion + ')' : ''}`;
-                                addItem({
-                                    id: `cake-approved-${req.id}`,
-                                    name: itemName,
-                                    price: req.approvedPrice,
-                                    image: req.imageUrl,
-                                });
-                                markOrdered(req.id);
-                                toast.success('Custom cake added to cart!');
-                                navigate('/checkout');
-                            }} className="flex items-center gap-1.5 px-4 py-2 bg-[#D4A843] hover:bg-[#B8923A] text-white rounded-lg text-sm font-semibold transition-colors">
-                                <ShoppingCart className="w-4 h-4"/>
-                                Order Now
-                              </button>
-                            </div>)}
-
-                          {/* Already ordered */}
-                          {req.ordered && (<p className="mt-2 text-xs text-green-600 font-medium flex items-center gap-1">
-                              <CheckCircle className="w-3.5 h-3.5"/> Added to order
-                            </p>)}
-
-                          {/* Rejected */}
-                          {req.status === 'rejected' && (<button onClick={() => navigate('/design')} className="mt-2 text-xs text-[#2C5F4F] underline hover:no-underline">
-                              Submit a new design →
-                            </button>)}
-                        </div>
-                      </div>
-                    </div>);
-                })}
-              </div>)}
           </div>)}
       </div>
     </div>);
