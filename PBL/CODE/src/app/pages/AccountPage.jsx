@@ -15,7 +15,8 @@ export default function AccountPage() {
     const [showLoginPwd, setShowLoginPwd] = useState(false);
     const [loginErrors, setLoginErrors] = useState({});
     // Signup state
-    const [signupName, setSignupName] = useState('');
+    const [signupFirstName, setSignupFirstName] = useState('');
+    const [signupLastName, setSignupLastName] = useState('');
     const [signupEmail, setSignupEmail] = useState('');
     const [signupPassword, setSignupPassword] = useState('');
     const [signupConfirm, setSignupConfirm] = useState('');
@@ -67,8 +68,10 @@ export default function AccountPage() {
     const handleSignup = async (e) => {
         e.preventDefault();
         const errs = {};
-        if (!signupName.trim())
-            errs.name = 'Full name is required';
+        if (!signupFirstName.trim())
+            errs.firstName = 'First name is required';
+        if (!signupLastName.trim())
+            errs.lastName = 'Last name is required';
         if (!signupEmail.trim()) {
             errs.email = 'Email address is required';
         }
@@ -95,7 +98,7 @@ export default function AccountPage() {
         }
         setSignupErrors({});
         const res = await withLock(() => signup({
-            name: signupName,
+            name: `${signupFirstName.trim()} ${signupLastName.trim()}`,
             email: signupEmail,
             password: signupPassword,
         }));
@@ -231,10 +234,18 @@ export default function AccountPage() {
               </div>
 
               <form onSubmit={handleSignup} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                  <input type="text" value={signupName} onChange={(e) => { setSignupName(e.target.value); setSignupErrors((p) => ({ ...p, name: undefined })); }} placeholder="Maria Santos" className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A843] focus:border-transparent bg-gray-50 transition ${signupErrors.name ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}/>
-                  {signupErrors.name && <p className="mt-1 text-xs text-red-500">{signupErrors.name}</p>}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <input type="text" value={signupFirstName} onChange={(e) => { setSignupFirstName(e.target.value); setSignupErrors((p) => ({ ...p, firstName: undefined })); }} placeholder="Maria" className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A843] focus:border-transparent bg-gray-50 transition ${signupErrors.firstName ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}/>
+                    {signupErrors.firstName && <p className="mt-1 text-xs text-red-500">{signupErrors.firstName}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <input type="text" value={signupLastName} onChange={(e) => { setSignupLastName(e.target.value); setSignupErrors((p) => ({ ...p, lastName: undefined })); }} placeholder="Santos" className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A843] focus:border-transparent bg-gray-50 transition ${signupErrors.lastName ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}/>
+                    {signupErrors.lastName && <p className="mt-1 text-xs text-red-500">{signupErrors.lastName}</p>}
+                  </div>
                 </div>
 
                 <div>
