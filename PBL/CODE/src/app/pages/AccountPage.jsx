@@ -267,7 +267,7 @@ export default function AccountPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
                     <div className="relative">
                       <input type={showSignupConfirm ? 'text' : 'password'} value={signupConfirm} onChange={(e) => { setSignupConfirm(e.target.value); setSignupErrors((p) => ({ ...p, confirm: undefined })); }} placeholder="••••••••" className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A843] focus:border-transparent bg-gray-50 transition pr-10 ${signupErrors.confirm ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}/>
                       <button type="button" onClick={() => setShowSignupConfirm(!showSignupConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
