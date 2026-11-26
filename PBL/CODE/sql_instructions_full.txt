@@ -33,8 +33,14 @@ CREATE TABLE IF NOT EXISTS customers (
   address TEXT,
   role TEXT DEFAULT 'customer',
   preferred_contact VARCHAR(50) DEFAULT 'email',
+  email_verified BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
+
+-- Email verification flag (run this on an existing database).
+-- Existing customers default to verified; new signups are inserted with false
+-- until they enter the 6-digit code from their verification email.
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT true;
 
 -- 3. STAFF MEMBERS / ACCOUNTS TABLE (ERD Staff Entity)
 CREATE TABLE IF NOT EXISTS staff_accounts (

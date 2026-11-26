@@ -34,6 +34,11 @@ export default function AccountPage() {
             setTimeout(() => setShowConsentModal(true), 500);
         }
     };
+    const goToVerify = (email) => {
+        const params = new URLSearchParams({ email });
+        if (searchParams.get('redirect')) params.set('redirect', searchParams.get('redirect'));
+        navigate(`/verify-email?${params.toString()}`);
+    };
     const [withLock, busy] = useSubmitLock(async (task) => task());
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -53,7 +58,9 @@ export default function AccountPage() {
         }
         setLoginErrors({});
         const res = await withLock(() => login(loginEmail, loginPassword));
-        if (res?.success) {
+        if (res?.needsVerification) {
+            goToVerify(res.email);
+        } else if (res?.success) {
             toast.success(`Welcome back${res.user?.name ? ', ' + res.user.name : ''}!`);
             if (res.role === 'admin') {
                 navigate('/admin');
@@ -102,7 +109,9 @@ export default function AccountPage() {
             email: signupEmail,
             password: signupPassword,
         }));
-        if (res?.success) {
+        if (res?.needsVerification) {
+            goToVerify(res.email);
+        } else if (res?.success) {
             navigate(redirectTo);
             showPrivacyModal();
         }

@@ -11,6 +11,7 @@ import OurFood from "./pages/OurFood";
 import Branches from "./pages/Branches";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import VerifyEmail from "./pages/VerifyEmail";
 import Checkout from "./pages/Checkout";
 import MyOrders from "./pages/MyOrders";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
             { path: "design", Component: Design },
             { path: "login", Component: Login },
             { path: "signup", Component: Signup },
+            { path: "verify-email", Component: VerifyEmail },
             { path: "checkout", Component: Checkout },
             { path: "my-orders", Component: MyOrders },
             { path: "privacy-policy", Component: PrivacyPolicy },
