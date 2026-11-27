@@ -138,17 +138,60 @@ function sanitizeAnalysis(raw) {
   };
 }
 
-export async function analyzeCakePayload(body) {
-  const apiKey = readSecret('GEMINI_API_KEY') || readSecret('API_KEY');
-  if (!apiKey) {
-    return {
-      status: 500,
-      data: {
-        error:
-          'Missing or placeholder GEMINI_API_KEY. Please add GEMINI_API_KEY in Settings > Secrets or Vercel Environment Variables.',
+function getDefaultEditableDetails() {
+  return [
+    { id: '1', label: 'Top & Topper', box_2d: [120, 260, 340, 740] },
+    { id: '2', label: 'Cake Surface & Lettering', box_2d: [280, 220, 480, 780] },
+    { id: '3', label: 'Main Frosting Body', box_2d: [420, 180, 730, 820] },
+    { id: '4', label: 'Border & Base', box_2d: [680, 160, 870, 840] },
+  ];
+}
+
+async function analyzeWithCloudflareVision(cfAccountId, cfToken, dataUrl) {
+  const prompt = `Inspect this cake photo and reply with ONLY valid JSON (no markdown) with these keys:
+{"icingType":"Soft Icing or Fondant","cakeType":"Bento or 1 Tier or Square or Rectangle or Slab Cake","flavor":"Chocolate or Ube or Vanilla or Mocha","summary":"1 short sentence describing the cake"}`;
+
+  const cfRes = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(cfAccountId)}/ai/run/@cf/meta/llama-3.2-11b-vision-instruct`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${cfToken}`,
+        'Content-Type': 'application/json',
       },
-    };
-  }
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: 'You return only compact valid JSON.' },
+          { role: 'user', content: prompt },
+        ],
+        image: dataUrl,
+      }),
+      signal: AbortSignal.timeout(20000),
+    }
+  );
+
+  if (!cfRes.ok) return null;
+  const json = await cfRes.json().catch(() => null);
+  const raw = json?.result?.response;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  const parsed = JSON.parse(match[0]);
+  return sanitizeAnalysis({
+    ...parsed,
+    details: getDefaultEditableDetails(),
+  });
+}
+
+export async function analyzeCakePayload(body) {
+  const apiKey =
+    readSecret('GEMINI_API_KEY') ||
+    readSecret('GOOGLE_API_KEY') ||
+    readSecret('API_KEY') ||
+    readSecret('VITE_GEMINI_API_KEY');
+  const cfAccountId = readSecret('CLOUDFLARE_ACCOUNT_ID') || readSecret('CF_ACCOUNT_ID');
+  const cfToken = readSecret('CLOUDFLARE_API_TOKEN') || readSecret('CF_API_TOKEN');
 
   const { imageBase64, mimeType } = body || {};
   if (typeof imageBase64 !== 'string' || !imageBase64.trim()) {
@@ -168,7 +211,8 @@ export async function analyzeCakePayload(body) {
     };
   }
 
-  const prompt = `
+  if (apiKey) {
+    const prompt = `
 Analyze this cake photo for a custom cake designer app (like Genie.ph).
 Detect the cake properties AND detect 3 to 6 distinct editable visual details on the cake with accurate 2D bounding boxes (normalized coordinates 0 to 1000: [ymin, xmin, ymax, xmax]).
 Examples of details: "Birthday Candles", "Top Piped Swirls", "Sprinkles Border", "Main Frosting Body", "Cake Topper", "Drizzle".
@@ -176,105 +220,125 @@ Examples of details: "Birthday Candles", "Top Piped Swirls", "Sprinkles Border",
 Return ONLY raw valid JSON matching the requested schema.
 `.trim();
 
-  const attempts = [
-    { vertexai: false, model: 'gemini-4-hydrogen' },
-    { vertexai: false, model: 'gemini-3.1-flash-lite' },
-    ...(apiKey.startsWith('AQ.')
-      ? [
-          { vertexai: true, model: 'gemini-2.5-flash' },
-          { vertexai: true, model: 'gemini-4-hydrogen' },
-        ]
-      : []),
-  ];
+    const attempts = [
+      { vertexai: false, model: 'gemini-4-hydrogen' },
+      { vertexai: false, model: 'gemini-3.1-flash-lite' },
+      ...(apiKey.startsWith('AQ.')
+        ? [
+            { vertexai: true, model: 'gemini-2.5-flash' },
+            { vertexai: true, model: 'gemini-4-hydrogen' },
+          ]
+        : []),
+    ];
 
-  let rawText = '';
-  let lastError = null;
-
-  for (const attempt of attempts) {
-    try {
-      const ai = getGeminiClient(apiKey, attempt.vertexai);
-      const response = await ai.models.generateContent({
-        model: attempt.model,
-        contents: {
-          parts: [
-            { inlineData: { mimeType: safeMime, data: cleanBase64 } },
-            { text: prompt },
-          ],
-        },
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              icingType: { type: Type.STRING, enum: ['Soft Icing', 'Fondant'] },
-              cakeType: {
-                type: Type.STRING,
-                enum: ['Bento', '1 Tier', 'Square', 'Rectangle', 'Slab Cake'],
-              },
-              flavor: {
-                type: Type.STRING,
-                enum: ['Chocolate', 'Ube', 'Vanilla', 'Mocha'],
-              },
-              suggestedBasePrice: { type: Type.NUMBER },
-              summary: { type: Type.STRING },
-              originalAppearance: { type: Type.STRING },
-              details: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    id: { type: Type.STRING },
-                    label: { type: Type.STRING },
-                    box_2d: {
-                      type: Type.ARRAY,
-                      items: { type: Type.INTEGER },
+    for (const attempt of attempts) {
+      try {
+        const ai = getGeminiClient(apiKey, attempt.vertexai);
+        const response = await ai.models.generateContent({
+          model: attempt.model,
+          contents: {
+            parts: [
+              { inlineData: { mimeType: safeMime, data: cleanBase64 } },
+              { text: prompt },
+            ],
+          },
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                icingType: { type: Type.STRING, enum: ['Soft Icing', 'Fondant'] },
+                cakeType: {
+                  type: Type.STRING,
+                  enum: ['Bento', '1 Tier', 'Square', 'Rectangle', 'Slab Cake'],
+                },
+                flavor: {
+                  type: Type.STRING,
+                  enum: ['Chocolate', 'Ube', 'Vanilla', 'Mocha'],
+                },
+                suggestedBasePrice: { type: Type.NUMBER },
+                summary: { type: Type.STRING },
+                originalAppearance: { type: Type.STRING },
+                details: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      id: { type: Type.STRING },
+                      label: { type: Type.STRING },
+                      box_2d: {
+                        type: Type.ARRAY,
+                        items: { type: Type.INTEGER },
+                      },
                     },
                   },
                 },
               },
             },
           },
-        },
-      });
+        });
 
-      if (response.text) {
-        rawText = response.text;
-        lastError = null;
-        break;
+        if (response.text) {
+          const cleaned = response.text
+            .replace(/^```json\s*/i, '')
+            .replace(/```$/i, '')
+            .trim();
+          const parsed = JSON.parse(cleaned);
+          return { status: 200, data: sanitizeAnalysis(parsed) };
+        }
+      } catch (err) {
+        console.warn(
+          `Model ${attempt.model} (vertexai=${attempt.vertexai}) failed during cake scan, trying fallback...`,
+          err
+        );
       }
-    } catch (err) {
-      lastError = err;
-      console.warn(
-        `Model ${attempt.model} (vertexai=${attempt.vertexai}) failed during cake scan, trying fallback...`,
-        err
-      );
     }
   }
 
-  if (lastError && !rawText) {
-    throw lastError;
+  if (cfAccountId && cfToken) {
+    try {
+      const dataUrl = imageBase64.startsWith('data:')
+        ? imageBase64
+        : `data:${safeMime};base64,${cleanBase64}`;
+      const cfAnalysis = await analyzeWithCloudflareVision(cfAccountId, cfToken, dataUrl);
+      if (cfAnalysis) {
+        return { status: 200, data: cfAnalysis };
+      }
+    } catch (cfErr) {
+      console.warn('Cloudflare Vision fallback failed, using default editable regions:', cfErr);
+    }
   }
 
-  const cleaned = rawText
-    .replace(/^```json\s*/i, '')
-    .replace(/```$/i, '')
-    .trim();
-
-  const parsed = JSON.parse(cleaned);
-  return { status: 200, data: sanitizeAnalysis(parsed) };
+  return {
+    status: 200,
+    data: {
+      ...sanitizeAnalysis({
+        icingType: 'Soft Icing',
+        cakeType: '1 Tier',
+        flavor: 'Vanilla',
+        summary: 'Click any area on the cake photo or pick options on the right to customize your design.',
+        details: getDefaultEditableDetails(),
+      }),
+      fallback: true,
+    },
+  };
 }
 
 export async function generateCakePayload(body) {
-  const geminiKey = readSecret('GEMINI_API_KEY') || readSecret('API_KEY');
-  const cfAccountId = readSecret('CLOUDFLARE_ACCOUNT_ID');
-  const cfToken = readSecret('CLOUDFLARE_API_TOKEN');
+  const geminiKey =
+    readSecret('GEMINI_API_KEY') ||
+    readSecret('GOOGLE_API_KEY') ||
+    readSecret('API_KEY') ||
+    readSecret('VITE_GEMINI_API_KEY');
+  const cfAccountId = readSecret('CLOUDFLARE_ACCOUNT_ID') || readSecret('CF_ACCOUNT_ID');
+  const cfToken = readSecret('CLOUDFLARE_API_TOKEN') || readSecret('CF_API_TOKEN');
 
   if (!cfAccountId || !cfToken) {
     return {
       status: 500,
       data: {
         error:
-          'Missing CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN in Settings > Secrets or Vercel Environment Variables.',
+          'Missing CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN. Add both in Vercel Project Settings → Environment Variables (and Redeploy) or AI Studio Settings → Secrets.',
       },
     };
   }

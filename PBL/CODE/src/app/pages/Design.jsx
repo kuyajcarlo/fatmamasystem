@@ -229,11 +229,15 @@ export default function Design() {
       }
       setAnalysis(data);
       setShowBoxes(true);
-      toast.success(
-        data.details?.length
-          ? `Scanned ${data.details.length} editable cake details!`
-          : 'Cake photo scanned!'
-      );
+      if (data.fallback) {
+        toast.info('Cake photo ready! Click any cake area or use the options to customize.');
+      } else {
+        toast.success(
+          data.details?.length
+            ? `Scanned ${data.details.length} editable cake details!`
+            : 'Cake photo scanned!'
+        );
+      }
     } catch (err) {
       console.error('Cake scan failed:', err);
       toast.error(err instanceof Error ? err.message : 'Failed to scan cake photo.');
