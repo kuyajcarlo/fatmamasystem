@@ -116,7 +116,10 @@ function prepareImageForAI(file) {
           return;
         }
         ctx.drawImage(img, 0, 0, targetW, targetH);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        let dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        if (dataUrl.length > 2_500_000) {
+          dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+        }
 
         const aiBase = 768;
         const aspect = targetW / targetH;
