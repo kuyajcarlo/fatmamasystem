@@ -136,6 +136,31 @@ function prepareImageForAI(file) {
   });
 }
 
+async function parseJsonResponse(res, fallbackMessage) {
+  const text = await res.text();
+  if (!text || !text.trim()) {
+    if (res.status === 404 || res.status === 405) {
+      throw new Error(
+        `AI backend endpoint is not reachable (HTTP ${res.status}). Make sure the Node server is running.`
+      );
+    }
+    throw new Error(
+      `${fallbackMessage} (Server returned an empty HTTP ${res.status || 'unknown'} response.)`
+    );
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    const preview = text.trim().slice(0, 120);
+    if (preview.startsWith('<')) {
+      throw new Error(
+        `AI backend returned HTML instead of JSON (HTTP ${res.status}). Make sure the Node server is running.`
+      );
+    }
+    throw new Error(`${fallbackMessage} (HTTP ${res.status}: invalid server response)`);
+  }
+}
+
 export default function Design() {
   const navigate = useNavigate();
   const { isLoggedIn, user } = useAuth();
@@ -195,9 +220,9 @@ export default function Design() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: dataUrl, mimeType }),
       });
-      const data = await res.json();
+      const data = await parseJsonResponse(res, 'Could not scan cake details.');
       if (!res.ok) {
-        throw new Error(data.error || 'Could not scan cake details.');
+        throw new Error(data?.error || 'Could not scan cake details.');
       }
       setAnalysis(data);
       setShowBoxes(true);
@@ -321,9 +346,9 @@ export default function Design() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await parseJsonResponse(res, 'Failed to generate custom cake.');
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to generate custom cake.');
+        throw new Error(data?.error || 'Failed to generate custom cake.');
       }
       if (!data.generatedImage) {
         throw new Error('No image was returned by the generator.');

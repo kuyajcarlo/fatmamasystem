@@ -166,6 +166,10 @@ async function startServer() {
 
   app.use(express.json({ limit: '15mb' }));
 
+  app.get('/api/health', (_req: Request, res: Response) => {
+    res.json({ ok: true });
+  });
+
   app.post('/api/analyze-cake', async (req: Request, res: Response) => {
     try {
       const apiKey = readSecret('GEMINI_API_KEY') || readSecret('API_KEY');
@@ -450,6 +454,7 @@ Return ONLY the prompt text, no quotes or markdown.
             Authorization: `Bearer ${cfToken}`,
           },
           body: formData,
+          signal: AbortSignal.timeout(45000),
         }
       );
 
@@ -457,17 +462,32 @@ Return ONLY the prompt text, no quotes or markdown.
       if (!cfRes.ok) {
         const errText = await cfRes.text();
         res.status(502).json({
-          error: `Cloudflare AI Error (${cfRes.status}): ${errText}`,
+          error: `Cloudflare AI Error (${cfRes.status}): ${errText || 'Empty error response'}`,
         });
         return;
       }
 
       if (contentType.includes('application/json')) {
-        const json = (await cfRes.json()) as {
+        const cfText = await cfRes.text();
+        if (!cfText || !cfText.trim()) {
+          res.status(502).json({
+            error: 'Cloudflare AI returned an empty JSON response.',
+          });
+          return;
+        }
+        let json: {
           success?: boolean;
           result?: { image?: string };
           errors?: Array<{ message: string }>;
         };
+        try {
+          json = JSON.parse(cfText);
+        } catch {
+          res.status(502).json({
+            error: 'Cloudflare AI returned malformed JSON.',
+          });
+          return;
+        }
 
         if (!json.result?.image) {
           res.status(502).json({
@@ -482,6 +502,12 @@ Return ONLY the prompt text, no quotes or markdown.
         });
       } else {
         const arrayBuf = await cfRes.arrayBuffer();
+        if (!arrayBuf || arrayBuf.byteLength === 0) {
+          res.status(502).json({
+            error: 'Cloudflare AI returned an empty image response.',
+          });
+          return;
+        }
         const base64Out = Buffer.from(arrayBuf).toString('base64');
         res.json({
           generatedImage: `data:image/png;base64,${base64Out}`,
@@ -490,9 +516,44 @@ Return ONLY the prompt text, no quotes or markdown.
       }
     } catch (err) {
       console.error('Generate Cake Error:', err);
+      const isTimeout =
+        err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+      if (isTimeout) {
+        res.status(504).json({
+          error: 'Image generation timed out while waiting for Cloudflare AI. Please try again.',
+        });
+        return;
+      }
       const message = err instanceof Error ? err.message : 'Failed to generate custom cake';
       res.status(500).json({ error: message });
     }
+  });
+
+  app.use('/api', (_req: Request, res: Response) => {
+    res.status(404).json({ error: 'API route not found.' });
+  });
+
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    const errObj = err as {
+      status?: number;
+      statusCode?: number;
+      type?: string;
+      message?: string;
+    };
+    const status = errObj?.status || errObj?.statusCode || 500;
+    if (req.path.startsWith('/api')) {
+      const message =
+        errObj?.type === 'entity.too.large' || status === 413
+          ? 'Uploaded image payload is too large. Please try a smaller photo.'
+          : errObj?.message || 'Internal server error.';
+      res.status(status).json({ error: message });
+      return;
+    }
+    next(err);
   });
 
   if (!isProd) {
