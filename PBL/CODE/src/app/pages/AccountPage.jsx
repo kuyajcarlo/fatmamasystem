@@ -15,8 +15,7 @@ export default function AccountPage() {
     const [showLoginPwd, setShowLoginPwd] = useState(false);
     const [loginErrors, setLoginErrors] = useState({});
     // Signup state
-    const [signupFirstName, setSignupFirstName] = useState('');
-    const [signupLastName, setSignupLastName] = useState('');
+    const [signupName, setSignupName] = useState('');
     const [signupEmail, setSignupEmail] = useState('');
     const [signupPassword, setSignupPassword] = useState('');
     const [signupConfirm, setSignupConfirm] = useState('');
@@ -33,11 +32,6 @@ export default function AccountPage() {
         if (!hasConsented) {
             setTimeout(() => setShowConsentModal(true), 500);
         }
-    };
-    const goToVerify = (email) => {
-        const params = new URLSearchParams({ email });
-        if (searchParams.get('redirect')) params.set('redirect', searchParams.get('redirect'));
-        navigate(`/verify-email?${params.toString()}`);
     };
     const [withLock, busy] = useSubmitLock(async (task) => task());
     const handleLogin = async (e) => {
@@ -58,9 +52,7 @@ export default function AccountPage() {
         }
         setLoginErrors({});
         const res = await withLock(() => login(loginEmail, loginPassword));
-        if (res?.needsVerification) {
-            goToVerify(res.email);
-        } else if (res?.success) {
+        if (res?.success) {
             toast.success(`Welcome back${res.user?.name ? ', ' + res.user.name : ''}!`);
             if (res.role === 'admin') {
                 navigate('/admin');
@@ -75,10 +67,8 @@ export default function AccountPage() {
     const handleSignup = async (e) => {
         e.preventDefault();
         const errs = {};
-        if (!signupFirstName.trim())
-            errs.firstName = 'First name is required';
-        if (!signupLastName.trim())
-            errs.lastName = 'Last name is required';
+        if (!signupName.trim())
+            errs.name = 'Full name is required';
         if (!signupEmail.trim()) {
             errs.email = 'Email address is required';
         }
@@ -105,13 +95,11 @@ export default function AccountPage() {
         }
         setSignupErrors({});
         const res = await withLock(() => signup({
-            name: `${signupFirstName.trim()} ${signupLastName.trim()}`,
+            name: signupName,
             email: signupEmail,
             password: signupPassword,
         }));
-        if (res?.needsVerification) {
-            goToVerify(res.email);
-        } else if (res?.success) {
+        if (res?.success) {
             navigate(redirectTo);
             showPrivacyModal();
         }
@@ -243,18 +231,10 @@ export default function AccountPage() {
               </div>
 
               <form onSubmit={handleSignup} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                    <input type="text" value={signupFirstName} onChange={(e) => { setSignupFirstName(e.target.value); setSignupErrors((p) => ({ ...p, firstName: undefined })); }} placeholder="Maria" className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A843] focus:border-transparent bg-gray-50 transition ${signupErrors.firstName ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}/>
-                    {signupErrors.firstName && <p className="mt-1 text-xs text-red-500">{signupErrors.firstName}</p>}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                    <input type="text" value={signupLastName} onChange={(e) => { setSignupLastName(e.target.value); setSignupErrors((p) => ({ ...p, lastName: undefined })); }} placeholder="Santos" className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A843] focus:border-transparent bg-gray-50 transition ${signupErrors.lastName ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}/>
-                    {signupErrors.lastName && <p className="mt-1 text-xs text-red-500">{signupErrors.lastName}</p>}
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                  <input type="text" value={signupName} onChange={(e) => { setSignupName(e.target.value); setSignupErrors((p) => ({ ...p, name: undefined })); }} placeholder="Maria Santos" className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A843] focus:border-transparent bg-gray-50 transition ${signupErrors.name ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}/>
+                  {signupErrors.name && <p className="mt-1 text-xs text-red-500">{signupErrors.name}</p>}
                 </div>
 
                 <div>
@@ -276,7 +256,7 @@ export default function AccountPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm</label>
                     <div className="relative">
                       <input type={showSignupConfirm ? 'text' : 'password'} value={signupConfirm} onChange={(e) => { setSignupConfirm(e.target.value); setSignupErrors((p) => ({ ...p, confirm: undefined })); }} placeholder="••••••••" className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A843] focus:border-transparent bg-gray-50 transition pr-10 ${signupErrors.confirm ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}/>
                       <button type="button" onClick={() => setShowSignupConfirm(!showSignupConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">

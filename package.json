@@ -1,12 +1,17 @@
 {
   "name": "fatmamasystem",
   "private": true,
-  "packageManager": "npm@10.9.8",
   "workspaces": [
     "PBL/CODE"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=PBL/CODE",
-    "build": "npm run build --workspace=PBL/CODE"
+    "dev": "npm --prefix PBL/CODE run dev",
+    "build": "npm --prefix PBL/CODE run build",
+    "start": "npm --prefix PBL/CODE run start"
+  },
+  "dependencies": {
+    "@google/genai": "^3.6.1",
+    "@types/express": "^5.0.6",
+    "express": "^5.3.0"
   }
 }

@@ -35,9 +35,7 @@ export default function Login() {
         }
         return withLock(async () => {
             const result = await login(email, password);
-            if (result.needsVerification) {
-                navigate(`/verify-email?email=${encodeURIComponent(result.email)}`);
-            } else if (result.success) {
+            if (result.success) {
                 toast.success('Welcome back!');
                 const userRole = result.role || (result.user && result.user.role);
                 handleLoginWithRole(userRole);

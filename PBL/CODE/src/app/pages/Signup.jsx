@@ -31,9 +31,7 @@ export default function Signup() {
         
         const result = await signup({ name, email, password });
         
-        if (result.needsVerification) {
-            navigate(`/verify-email?email=${encodeURIComponent(result.email)}`);
-        } else if (result.success) {
+        if (result.success) {
             navigate('/');
             if (!hasConsented) {
                 setTimeout(() => setShowConsentModal(true), 500);

@@ -113,13 +113,6 @@ export function AuthProvider({ children }) {
                     .maybeSingle();
 
                 if (customerData) {
-                    if (customerData.email_verified === false) {
-                        const { error: resendErr } = await supabase.auth.resend({ type: 'signup', email: customerData.email });
-                        toast.error(resendErr
-                            ? 'Please verify your email first. Use "Resend code" on the next page if you need a new one.'
-                            : 'Please verify your email first. We sent a new verification code to your inbox.');
-                        return { success: false, needsVerification: true, email: customerData.email };
-                    }
                     const userData = { ...customerData, role: customerData.role || 'customer' };
                     setUser(userData);
                     saveLocalCustomer(userData);
@@ -192,40 +185,13 @@ export function AuthProvider({ children }) {
                 // Check if already in Supabase
                 const { data: existingUser } = await supabase
                     .from('customers')
-                    .select('email, email_verified')
+                    .select('email')
                     .ilike('email', escapeLike(cleanEmail))
                     .maybeSingle();
 
                 if (existingUser) {
-                    // Account was started but never verified: send a fresh code instead of failing
-                    if (existingUser.email_verified === false) {
-                        const { error: resendErr } = await supabase.auth.resend({ type: 'signup', email: cleanEmail });
-                        if (resendErr) {
-                            toast.error(`Could not send verification email: ${resendErr.message}`);
-                            return { success: false };
-                        }
-                        toast.info(`This email is awaiting verification. We sent a new code to ${cleanEmail}.`);
-                        return { success: true, needsVerification: true, email: cleanEmail };
-                    }
                     toast.error('An account with this email already exists in the database.');
                     return { success: false };
-                }
-
-                // Supabase Auth sends the verification email (6-digit code via {{ .Token }} in the template)
-                const { data: authData, error: authErr } = await supabase.auth.signUp({
-                    email: cleanEmail,
-                    password: userData.password,
-                    options: { data: { name: userData.name } },
-                });
-                if (authErr) {
-                    console.error("Supabase auth signUp error:", authErr);
-                    toast.error(`Could not send verification email: ${authErr.message}`);
-                    return { success: false };
-                }
-                if (authData?.session) {
-                    // A session is only returned when "Confirm email" is turned off in Supabase
-                    console.warn('Supabase "Confirm email" is disabled, so no verification email was sent.');
-                    await supabase.auth.signOut();
                 }
 
                 const { data: newCustomer, error } = await supabase
@@ -236,15 +202,17 @@ export function AuthProvider({ children }) {
                         password: userData.password,
                         phone: userData.phone || '',
                         address: userData.address || '',
-                        role: 'customer',
-                        email_verified: false,
+                        role: 'customer'
                     }])
                     .select()
                     .maybeSingle();
 
                 if (!error && newCustomer) {
-                    toast.success(`Verification needed! We sent a 6-digit code to ${cleanEmail}. Check your inbox to finish creating your account.`);
-                    return { success: true, needsVerification: true, email: cleanEmail };
+                    const u = { ...newCustomer, role: 'customer' };
+                    setUser(u);
+                    saveLocalCustomer(u);
+                    toast.success("Account created successfully in database!");
+                    return { success: true, user: u };
                 } else if (error) {
                     console.error("Supabase customer insert error:", error);
                     if (error.code === '23505') {
@@ -277,59 +245,6 @@ export function AuthProvider({ children }) {
         setUser(newCustomerObj);
         toast.success("Account created successfully!");
         return { success: true, user: newCustomerObj };
-    };
-
-    const verifyEmail = async (email, code) => {
-        const cleanEmail = String(email || '').trim().toLowerCase();
-        const token = String(code || '').trim();
-        if (!supabase) {
-            toast.error('Email verification is unavailable offline.');
-            return { success: false };
-        }
-        try {
-            const { error: otpErr } = await supabase.auth.verifyOtp({ email: cleanEmail, token, type: 'signup' });
-            if (otpErr) {
-                toast.error(otpErr.message?.toLowerCase().includes('expired')
-                    ? 'This code has expired. Please request a new one.'
-                    : 'Invalid verification code. Please try again.');
-                return { success: false };
-            }
-            // The app keeps its own session, so drop the Supabase Auth one
-            await supabase.auth.signOut();
-
-            const { data: customer, error } = await supabase
-                .from('customers')
-                .update({ email_verified: true })
-                .ilike('email', escapeLike(cleanEmail))
-                .select()
-                .maybeSingle();
-            if (error || !customer) {
-                console.error("Customer verification update error:", error);
-                toast.error('Email verified, but we could not activate your account. Please try logging in.');
-                return { success: false };
-            }
-            const u = { ...customer, role: customer.role || 'customer' };
-            setUser(u);
-            saveLocalCustomer(u);
-            toast.success('Email verified! Your account has been created.');
-            return { success: true, user: u };
-        } catch (error) {
-            console.error("Email verification error:", error);
-            toast.error(`Verification failed: ${error.message || 'Connection failed'}`);
-            return { success: false };
-        }
-    };
-
-    const resendVerification = async (email, { silent = false } = {}) => {
-        const cleanEmail = String(email || '').trim().toLowerCase();
-        if (!supabase || !cleanEmail) return { success: false };
-        const { error } = await supabase.auth.resend({ type: 'signup', email: cleanEmail });
-        if (error) {
-            toast.error(`Could not resend code: ${error.message}`);
-            return { success: false };
-        }
-        if (!silent) toast.success(`A new verification code was sent to ${cleanEmail}.`);
-        return { success: true };
     };
 
     const logout = () => {
@@ -365,8 +280,6 @@ export function AuthProvider({ children }) {
             isStaff: user?.role === 'staff' || user?.email?.toLowerCase().includes('staff'),
             login,
             signup,
-            verifyEmail,
-            resendVerification,
             logout,
             updateUser,
         }}>
