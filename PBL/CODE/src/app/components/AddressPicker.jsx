@@ -51,6 +51,7 @@ export default function AddressPicker({ lat, lng, onPick }) {
         setBusy(true);
         try {
             const r = await fetch(`${NOMINATIM}/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${la}&lon=${ln}`, { headers: { 'Accept-Language': 'en' } });
+            if (!r.ok) throw new Error(`Geocoding failed (${r.status})`);
             const data = await r.json();
             if (data && !data.error) {
                 const fields = { ...toFields(data), lat: la, lng: ln };
@@ -99,9 +100,10 @@ export default function AddressPicker({ lat, lng, onPick }) {
         setBusy(true);
         try {
             const r = await fetch(`${NOMINATIM}/search?format=jsonv2&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(q)}`, { headers: { 'Accept-Language': 'en' } });
+            if (!r.ok) throw new Error(`Search failed (${r.status})`);
             const data = await r.json();
-            setResults(data);
-            if (!data.length) toast.info('No match. Try a landmark, barangay or city, or drop the pin on the map.');
+            setResults(Array.isArray(data) ? data : []);
+            if (!Array.isArray(data) || !data.length) toast.info('No match. Try a landmark, barangay or city, or drop the pin on the map.');
         } catch {
             toast.error('Search failed. Check your connection or drop the pin on the map.');
         } finally {

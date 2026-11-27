@@ -2,12 +2,9 @@ import {
   generateCakePayload,
   readJsonBody,
   sendJson,
-  type ApiRequest,
-  type ApiResponse,
-  type GenerateRequestBody,
-} from './_lib/cake-ai';
+} from './_lib/cake-ai.mjs';
 
-export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
+export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
     res.end();
@@ -19,7 +16,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   }
 
   try {
-    const body = await readJsonBody<GenerateRequestBody>(req);
+    const body = await readJsonBody(req);
     const result = await generateCakePayload(body);
     sendJson(res, result.status, result.data);
   } catch (err) {

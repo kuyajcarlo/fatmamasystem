@@ -3,11 +3,9 @@ import {
   formatGeminiError,
   readJsonBody,
   sendJson,
-  type ApiRequest,
-  type ApiResponse,
 } from './_lib/cake-ai.js';
 
-export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
+export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
     res.end();
@@ -19,7 +17,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   }
 
   try {
-    const body = await readJsonBody<{ imageBase64?: unknown; mimeType?: unknown }>(req);
+    const body = await readJsonBody(req);
     const result = await analyzeCakePayload(body);
     sendJson(res, result.status, result.data);
   } catch (err) {

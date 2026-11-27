@@ -15,7 +15,11 @@ function getLocalCakeDesigns() {
 }
 
 function saveLocalCakeDesigns(items) {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(items));
+    try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(items));
+    } catch {
+        // Ignore storage quota errors when many base64 cake previews exist locally
+    }
 }
 
 export function CakeDesignProvider({ children }) {

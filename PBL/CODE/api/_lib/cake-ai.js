@@ -1,43 +1,4 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import { GoogleGenAI, Type } from '@google/genai';
-
-export interface ApiRequest extends IncomingMessage {
-  body?: unknown;
-}
-
-export type ApiResponse = ServerResponse;
-
-export interface DetectedDetail {
-  id: string;
-  label: string;
-  box_2d: [number, number, number, number];
-}
-
-export interface CakeAnalysisResponse {
-  icingType: 'Fondant' | 'Soft Icing';
-  cakeType: 'Bento' | '1 Tier' | 'Square' | 'Rectangle' | 'Slab Cake';
-  flavor: 'Chocolate' | 'Ube' | 'Vanilla' | 'Mocha';
-  suggestedBasePrice: number;
-  summary: string;
-  originalAppearance: string;
-  details: DetectedDetail[];
-}
-
-export interface GenerateRequestBody {
-  imageBase64?: string;
-  mimeType?: string;
-  outputWidth?: number;
-  outputHeight?: number;
-  icingType?: string | null;
-  flavor?: string | null;
-  size?: string | null;
-  layers?: number | null;
-  colorName?: string | null;
-  topper?: string | null;
-  cakeText?: string;
-  detailEdits?: Array<{ label: string; edit: string }>;
-  instructions?: string;
-}
 
 export const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -46,34 +7,34 @@ export const ALLOWED_MIME_TYPES = new Set([
   'image/webp',
 ]);
 
-export function sendJson(res: ApiResponse, status: number, payload: unknown): void {
+export function sendJson(res, status, payload) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(payload));
 }
 
-export async function readJsonBody<T = Record<string, unknown>>(req: ApiRequest): Promise<T> {
+export async function readJsonBody(req) {
   if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
-    return req.body as T;
+    return req.body;
   }
   if (typeof req.body === 'string') {
-    return (req.body.trim() ? JSON.parse(req.body) : {}) as T;
+    return req.body.trim() ? JSON.parse(req.body) : {};
   }
   if (Buffer.isBuffer(req.body)) {
     const str = req.body.toString('utf8');
-    return (str.trim() ? JSON.parse(str) : {}) as T;
+    return str.trim() ? JSON.parse(str) : {};
   }
 
-  const chunks: Buffer[] = [];
+  const chunks = [];
   for await (const chunk of req) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : (chunk as Buffer));
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   }
   const raw = Buffer.concat(chunks).toString('utf8').trim();
-  if (!raw) return {} as T;
-  return JSON.parse(raw) as T;
+  if (!raw) return {};
+  return JSON.parse(raw);
 }
 
-export function readSecret(name: string): string {
+export function readSecret(name) {
   const raw = process.env[name];
   if (!raw) return '';
   let trimmed = raw.trim();
@@ -98,7 +59,7 @@ export function readSecret(name: string): string {
   return trimmed;
 }
 
-function getGeminiClient(apiKey: string, vertexai = false): GoogleGenAI {
+function getGeminiClient(apiKey, vertexai = false) {
   return new GoogleGenAI({
     apiKey,
     ...(vertexai ? { vertexai: true } : {}),
@@ -110,7 +71,7 @@ function getGeminiClient(apiKey: string, vertexai = false): GoogleGenAI {
   });
 }
 
-export function formatGeminiError(err: unknown): string {
+export function formatGeminiError(err) {
   const raw = err instanceof Error ? err.message : String(err || 'Gemini request failed');
   if (raw.includes('API_KEY_INVALID') || raw.includes('API key not valid')) {
     return 'Your GEMINI_API_KEY is not valid. Please check or update GEMINI_API_KEY in Settings > Secrets or Vercel Environment Variables.';
@@ -124,35 +85,31 @@ export function formatGeminiError(err: unknown): string {
   return raw;
 }
 
-function stripDataUrlPrefix(input: string): string {
+function stripDataUrlPrefix(input) {
   return input.includes(',') ? input.split(',')[1] : input;
 }
 
-function clampCoord(val: unknown): number {
+function clampCoord(val) {
   const num = Number(val);
   if (!Number.isFinite(num)) return 0;
   return Math.max(0, Math.min(1000, Math.round(num)));
 }
 
-function clampDimension(val: unknown, fallback = 768): number {
+function clampDimension(val, fallback = 768) {
   const num = Number(val);
   if (!Number.isFinite(num)) return fallback;
   const clamped = Math.max(256, Math.min(1024, Math.round(num)));
   return Math.round(clamped / 16) * 16;
 }
 
-function sanitizeAnalysis(raw: Partial<CakeAnalysisResponse>): CakeAnalysisResponse {
-  const validIcing = raw.icingType === 'Fondant' ? 'Fondant' : 'Soft Icing';
-  const validTypes = ['Bento', '1 Tier', 'Square', 'Rectangle', 'Slab Cake'] as const;
-  const cakeType = validTypes.includes(raw.cakeType as (typeof validTypes)[number])
-    ? (raw.cakeType as CakeAnalysisResponse['cakeType'])
-    : '1 Tier';
-  const validFlavors = ['Chocolate', 'Ube', 'Vanilla', 'Mocha'] as const;
-  const flavor = validFlavors.includes(raw.flavor as (typeof validFlavors)[number])
-    ? (raw.flavor as CakeAnalysisResponse['flavor'])
-    : 'Chocolate';
+function sanitizeAnalysis(raw) {
+  const validIcing = raw?.icingType === 'Fondant' ? 'Fondant' : 'Soft Icing';
+  const validTypes = ['Bento', '1 Tier', 'Square', 'Rectangle', 'Slab Cake'];
+  const cakeType = validTypes.includes(raw?.cakeType) ? raw.cakeType : '1 Tier';
+  const validFlavors = ['Chocolate', 'Ube', 'Vanilla', 'Mocha'];
+  const flavor = validFlavors.includes(raw?.flavor) ? raw.flavor : 'Chocolate';
 
-  const details: DetectedDetail[] = Array.isArray(raw.details)
+  const details = Array.isArray(raw?.details)
     ? raw.details.slice(0, 6).map((d, idx) => {
         const box = Array.isArray(d?.box_2d) ? d.box_2d : [150, 150, 850, 850];
         const ymin = clampCoord(box[0]);
@@ -162,12 +119,7 @@ function sanitizeAnalysis(raw: Partial<CakeAnalysisResponse>): CakeAnalysisRespo
         return {
           id: String(d?.id || idx + 1),
           label: String(d?.label || `Cake Detail ${idx + 1}`).slice(0, 80),
-          box_2d: [
-            ymin,
-            xmin,
-            Math.min(1000, ymax),
-            Math.min(1000, xmax),
-          ],
+          box_2d: [ymin, xmin, Math.min(1000, ymax), Math.min(1000, xmax)],
         };
       })
     : [];
@@ -177,19 +129,16 @@ function sanitizeAnalysis(raw: Partial<CakeAnalysisResponse>): CakeAnalysisRespo
     cakeType,
     flavor,
     suggestedBasePrice:
-      typeof raw.suggestedBasePrice === 'number' && Number.isFinite(raw.suggestedBasePrice)
+      typeof raw?.suggestedBasePrice === 'number' && Number.isFinite(raw.suggestedBasePrice)
         ? Math.max(450, Math.min(10000, Math.round(raw.suggestedBasePrice)))
         : 650,
-    summary: String(raw.summary || 'Custom cake ready for editing.').slice(0, 280),
-    originalAppearance: String(raw.originalAppearance || '').slice(0, 600),
+    summary: String(raw?.summary || 'Custom cake ready for editing.').slice(0, 280),
+    originalAppearance: String(raw?.originalAppearance || '').slice(0, 600),
     details,
   };
 }
 
-export async function analyzeCakePayload(body: {
-  imageBase64?: unknown;
-  mimeType?: unknown;
-}): Promise<{ status: number; data: unknown }> {
+export async function analyzeCakePayload(body) {
   const apiKey = readSecret('GEMINI_API_KEY') || readSecret('API_KEY');
   if (!apiKey) {
     return {
@@ -227,7 +176,7 @@ Examples of details: "Birthday Candles", "Top Piped Swirls", "Sprinkles Border",
 Return ONLY raw valid JSON matching the requested schema.
 `.trim();
 
-  const attempts: Array<{ vertexai: boolean; model: string }> = [
+  const attempts = [
     { vertexai: false, model: 'gemini-4-hydrogen' },
     { vertexai: false, model: 'gemini-3.1-flash-lite' },
     ...(apiKey.startsWith('AQ.')
@@ -239,7 +188,7 @@ Return ONLY raw valid JSON matching the requested schema.
   ];
 
   let rawText = '';
-  let lastError: unknown = null;
+  let lastError = null;
 
   for (const attempt of attempts) {
     try {
@@ -311,13 +260,11 @@ Return ONLY raw valid JSON matching the requested schema.
     .replace(/```$/i, '')
     .trim();
 
-  const parsed = JSON.parse(cleaned) as Partial<CakeAnalysisResponse>;
+  const parsed = JSON.parse(cleaned);
   return { status: 200, data: sanitizeAnalysis(parsed) };
 }
 
-export async function generateCakePayload(
-  body: GenerateRequestBody
-): Promise<{ status: number; data: unknown }> {
+export async function generateCakePayload(body) {
   const geminiKey = readSecret('GEMINI_API_KEY') || readSecret('API_KEY');
   const cfAccountId = readSecret('CLOUDFLARE_ACCOUNT_ID');
   const cfToken = readSecret('CLOUDFLARE_API_TOKEN');
@@ -349,7 +296,7 @@ export async function generateCakePayload(
       ? body.mimeType.toLowerCase()
       : 'image/jpeg';
 
-  const requestedChanges: string[] = [];
+  const requestedChanges = [];
 
   if (body.flavor && body.flavor !== 'Same as Photo') {
     requestedChanges.push(
@@ -421,7 +368,7 @@ Start your prompt with: "Keep the exact cake, plate, background, lighting, and c
 Return ONLY the prompt text, no quotes or markdown.
 `.trim();
 
-    const promptAttempts: Array<{ vertexai: boolean; model: string }> = [
+    const promptAttempts = [
       { vertexai: false, model: 'gemini-4-hydrogen' },
       ...(geminiKey.startsWith('AQ.') ? [{ vertexai: true, model: 'gemini-2.5-flash' }] : []),
     ];
@@ -496,11 +443,7 @@ Return ONLY the prompt text, no quotes or markdown.
       };
     }
 
-    let json: {
-      success?: boolean;
-      result?: { image?: string };
-      errors?: Array<{ message: string }>;
-    };
+    let json;
     try {
       json = JSON.parse(cfText);
     } catch {
