@@ -7,10 +7,6 @@ import {
   type ApiResponse,
 } from './_lib/cake-ai';
 
-export const config = {
-  maxDuration: 60,
-};
-
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
